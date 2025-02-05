@@ -22,6 +22,25 @@ namespace SkiaDrawing
         }
 
         /// <summary>
+        /// Initializes a new instance of the Icon class by decoding the image data from a memory stream.
+        /// </summary>
+        /// <param name="memoryStream">A memory stream containing icon data.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="Exception">Thrown if the icon cannot be decoded.</exception>
+        public Icon(MemoryStream memoryStream)
+        {
+            if (memoryStream == null)
+                throw new ArgumentNullException(nameof(memoryStream));
+
+            // Create SKData from the memory stream
+            var data = SKData.Create(memoryStream);
+            image = SKImage.FromEncodedData(data);
+            data.Dispose();
+            if (image == null)
+                throw new Exception("Unable to decode the icon from the memory stream.");
+        }
+
+        /// <summary>
         /// Gets the width of the icon.
         /// </summary>
         public int Width => image?.Width ?? 0;
@@ -60,7 +79,6 @@ namespace SkiaDrawing
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
 
-            // SKData.Create(Stream) does not dispose the stream.
             using (var data = SKData.Create(stream))
             {
                 SKImage img = SKImage.FromEncodedData(data);

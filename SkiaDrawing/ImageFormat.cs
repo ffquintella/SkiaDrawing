@@ -13,7 +13,8 @@ namespace SkiaDrawing
         Ico,
         Jpeg,
         Png,
-        Webp
+        Webp,
+        Tiff
         // You can add others if supported by your version of SkiaSharp, e.g. Heif, Avif, etc.
     }
 
@@ -44,6 +45,8 @@ namespace SkiaDrawing
                     return SKEncodedImageFormat.Png;
                 case ImageFormat.Webp:
                     return SKEncodedImageFormat.Webp;
+                case ImageFormat.Tiff:
+                    throw new NotImplementedException();
                 default:
                     throw new System.NotSupportedException($"The image format '{format}' is not supported.");
             }
