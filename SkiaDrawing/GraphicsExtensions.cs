@@ -185,6 +185,31 @@ namespace SkiaDrawing
             // You can rely on your previously implemented DrawImage(Bitmap, Rectangle, Rectangle, GraphicsUnit) extension:
             g.DrawImage(b, destRect, srcRect, GraphicsUnit.Pixel);
         }
+        
+        /// <summary>
+        /// Draws the entire bitmap 'b' into the specified destination rectangle
+        /// at position (x, y) with the specified width and height.
+        /// </summary>
+        /// <param name="g">The Graphics object on which to draw.</param>
+        /// <param name="b">The Bitmap to draw.</param>
+        /// <param name="x">The left position of the destination rectangle.</param>
+        /// <param name="y">The top position of the destination rectangle.</param>
+        /// <param name="width">The width of the destination rectangle.</param>
+        /// <param name="height">The height of the destination rectangle.</param>
+        public static void DrawImage(this Graphics g, Bitmap b, int x, int y, int width, int height)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (b == null)
+                throw new ArgumentNullException(nameof(b));
+
+            // Create the destination rectangle from the given coordinates
+            Rectangle destRect = new Rectangle(x, y, width, height);
+
+            // We can call an existing extension/method that takes (Bitmap, Rectangle)
+            // which draws the entire source image into that rectangle.
+            g.DrawImage(b, destRect);
+        }
     }
 }
 
