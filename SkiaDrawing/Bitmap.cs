@@ -1,6 +1,6 @@
-
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace SkiaDrawing
@@ -21,10 +21,17 @@ namespace SkiaDrawing
             if (string.IsNullOrEmpty(fileName))
                 throw new ArgumentNullException(nameof(fileName));
 
-            using (var stream = File.OpenRead(fileName))
+            FileStream fs = null;
+            try
             {
-                skBitmap = SKBitmap.Decode(stream)
-                    ?? throw new Exception("Failed to decode bitmap from file.");
+                fs = File.OpenRead(fileName);
+                skBitmap = SKBitmap.Decode(fs);
+                if (skBitmap == null)
+                    throw new Exception("Failed to decode bitmap from file.");
+            }
+            finally
+            {
+                if (fs != null) fs.Dispose();
             }
         }
 
@@ -33,13 +40,17 @@ namespace SkiaDrawing
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
 
-            skBitmap = SKBitmap.Decode(stream)
-                ?? throw new Exception("Failed to decode bitmap from stream.");
+            skBitmap = SKBitmap.Decode(stream);
+            if (skBitmap == null)
+                throw new Exception("Failed to decode bitmap from stream.");
         }
 
         public Bitmap(SKBitmap bitmap)
         {
-            skBitmap = bitmap ?? throw new ArgumentNullException(nameof(bitmap));
+            if (bitmap == null)
+                throw new ArgumentNullException(nameof(bitmap));
+
+            skBitmap = bitmap;
         }
 
         public Bitmap(Bitmap b, Size s)
@@ -47,8 +58,8 @@ namespace SkiaDrawing
             if (b == null)
                 throw new ArgumentNullException(nameof(b));
 
-            var newInfo = new SKImageInfo(s.Width, s.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
-            var newSkBitmap = new SKBitmap(newInfo);
+            SKImageInfo newInfo = new SKImageInfo(s.Width, s.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKBitmap newSkBitmap = new SKBitmap(newInfo);
 
             bool success = b.ToSKBitmap().ScalePixels(newSkBitmap, SKFilterQuality.High);
             if (!success)
@@ -57,12 +68,61 @@ namespace SkiaDrawing
             skBitmap = newSkBitmap;
         }
 
+        public Bitmap(int width, int height, int stride, SKColorType pixelFormat, IntPtr scan0)
+        {
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException("Width and height must be positive.");
+            if (scan0 == IntPtr.Zero)
+                throw new ArgumentNullException(nameof(scan0), "scan0 cannot be IntPtr.Zero.");
+
+            // Create an SKImageInfo
+            SKImageInfo info = new SKImageInfo(width, height, pixelFormat, SKAlphaType.Premul);
+
+            skBitmap = new SKBitmap(info);
+
+            IntPtr destPtr = skBitmap.GetPixels();
+            if (destPtr == IntPtr.Zero)
+                throw new Exception("Failed to allocate pixels in SKBitmap.");
+
+            unsafe
+            {
+                byte* srcRow = (byte*)scan0.ToPointer();
+                byte* dstRow = (byte*)destPtr.ToPointer();
+                int rowBytes = skBitmap.RowBytes;  // number of bytes per row in the destination
+
+                for (int y = 0; y < height; y++)
+                {
+                    int copyBytes = Math.Min(stride, rowBytes);
+                    Buffer.MemoryCopy(srcRow, dstRow, rowBytes, copyBytes);
+                    srcRow += stride;
+                    dstRow += rowBytes;
+                }
+            }
+        }
+
         #endregion
 
         #region Properties
 
-        public int Width => skBitmap?.Width ?? 0;
-        public int Height => skBitmap?.Height ?? 0;
+        public int Width
+        {
+            get
+            {
+                if (skBitmap == null)
+                    throw new ObjectDisposedException(nameof(Bitmap));
+                return skBitmap.Width;
+            }
+        }
+
+        public int Height
+        {
+            get
+            {
+                if (skBitmap == null)
+                    throw new ObjectDisposedException(nameof(Bitmap));
+                return skBitmap.Height;
+            }
+        }
 
         public IntPtr Scan0
         {
@@ -92,6 +152,7 @@ namespace SkiaDrawing
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
+
             if (x < 0 || x >= skBitmap.Width || y < 0 || y >= skBitmap.Height)
                 throw new ArgumentOutOfRangeException();
 
@@ -102,6 +163,7 @@ namespace SkiaDrawing
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
+
             if (x < 0 || x >= skBitmap.Width || y < 0 || y >= skBitmap.Height)
                 throw new ArgumentOutOfRangeException();
 
@@ -110,55 +172,104 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Save Methods
+        #region Clone Method
 
         /// <summary>
-        /// Saves the bitmap to a file in the specified encoded image format.
+        /// Clones the specified rectangle from this bitmap into a new Bitmap,
+        /// using the specified PixelFormat <paramref name="f"/>.
         /// </summary>
+        /// <param name="r">The region to clone (crop) from this bitmap.</param>
+        /// <param name="f">The desired pixel format for the new bitmap.</param>
+        /// <returns>A new Bitmap containing the cropped and converted region.</returns>
+        public Bitmap Clone(Rectangle r, PixelFormat f)
+        {
+            if (skBitmap == null)
+                throw new ObjectDisposedException(nameof(Bitmap));
+
+            // Validate rectangle bounds
+            if (r.X < 0 || r.Y < 0 || r.Width < 0 || r.Height < 0 ||
+                r.X + r.Width > Width || r.Y + r.Height > Height)
+            {
+                throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
+            }
+
+            // Map the PixelFormat to a SkiaSharp SKColorType
+            SKColorType colorType = f.ToSKColorType(); // <== Assume you have a method like this
+
+            // Create a new SKBitmap with the desired size and color type
+            SKImageInfo newInfo = new SKImageInfo(r.Width, r.Height, colorType, SKAlphaType.Premul);
+            SKBitmap newSkBitmap = new SKBitmap(newInfo);
+
+            // We'll draw the source sub-region onto the new bitmap.
+            SKCanvas canvas = new SKCanvas(newSkBitmap);
+
+            // Source rectangle in the current bitmap
+            var srcRect = new SKRect(r.X, r.Y, r.X + r.Width, r.Y + r.Height);
+
+            // Destination rectangle in the new bitmap (starts at 0,0)
+            var dstRect = new SKRect(0, 0, r.Width, r.Height);
+
+            // Draw the portion of the original skBitmap into the new one.
+            canvas.DrawBitmap(skBitmap, srcRect, dstRect);
+
+            // Dispose the canvas
+            canvas.Dispose();
+
+            // Return a new Bitmap wrapping this newly created SKBitmap
+            return new Bitmap(newSkBitmap);
+        }
+
+        #endregion
+
+        #region Save Methods
+
         public void Save(string fileName, SKEncodedImageFormat format, int quality = 100)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new ArgumentNullException(nameof(fileName));
 
-            using (var data = skBitmap.Encode(format, quality))
-            using (var stream = File.OpenWrite(fileName))
+            SKData data = skBitmap.Encode(format, quality);
+            if (data == null)
+                throw new Exception("Failed to encode bitmap.");
+
+            FileStream fs = null;
+            try
             {
-                data.SaveTo(stream);
+                fs = File.OpenWrite(fileName);
+                data.SaveTo(fs);
+            }
+            finally
+            {
+                if (fs != null) fs.Dispose();
+                data.Dispose();
             }
         }
 
-        /// <summary>
-        /// Saves the bitmap to a stream in the specified encoded image format.
-        /// </summary>
         public void Save(Stream stream, SKEncodedImageFormat format, int quality = 100)
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
 
-            using (var data = skBitmap.Encode(format, quality))
-            {
-                data.SaveTo(stream);
-            }
+            SKData data = skBitmap.Encode(format, quality);
+            if (data == null)
+                throw new Exception("Failed to encode bitmap.");
+
+            data.SaveTo(stream);
+            data.Dispose();
         }
 
-        /// <summary>
-        /// Saves the bitmap to the provided MemoryStream in the specified ImageFormat.
-        /// </summary>
-        /// <param name="s">The MemoryStream to which the bitmap will be written.</param>
-        /// <param name="f">The desired ImageFormat (custom enum) for the output.</param>
         public void Save(MemoryStream s, ImageFormat f)
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s));
 
-            // Convert our custom ImageFormat enum to SkiaSharp's SKEncodedImageFormat.
             var skEncodedFormat = f.ToSKEncodedImageFormat();
+            SKData data = skBitmap.Encode(skEncodedFormat, 100);
+            if (data == null)
+                throw new Exception("Failed to encode bitmap.");
 
-            // Encode the bitmap data with default quality (or you could add an optional parameter for quality).
-            using (var data = skBitmap.Encode(skEncodedFormat, 100))
-            {
-                data.SaveTo(s);
-            }
+            data.SaveTo(s);
+            data.Dispose();
         }
 
         #endregion
@@ -178,14 +289,20 @@ namespace SkiaDrawing
 
         public void Dispose()
         {
-            skBitmap?.Dispose();
-            skBitmap = null;
+            if (skBitmap != null)
+            {
+                skBitmap.Dispose();
+                skBitmap = null;
+            }
         }
 
         #endregion
 
         public override string ToString()
         {
+            if (skBitmap == null)
+                return "Bitmap: Disposed";
+
             return $"Bitmap: {Width} x {Height}, Stride: {Stride} bytes";
         }
     }
