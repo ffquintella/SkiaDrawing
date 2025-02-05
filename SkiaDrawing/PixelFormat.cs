@@ -13,6 +13,7 @@ namespace SkiaDrawing
         Format32bppArgb    = 0x26200,
         Format32bppPArgb   = 0x26201,
         Format8bppGray     = 0x20308, // not a GDI+ standard but let's include a gray8 for demonstration
+        Format8bppIndexed  = 0x20401,
         // Add others as needed (e.g. Format16bppArgb1555, Format48bppRgb, Format64bppArgb, etc.).
     }
 }

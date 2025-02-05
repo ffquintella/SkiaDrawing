@@ -36,6 +36,9 @@ namespace SkiaDrawing
 
                 case PixelFormat.Format8bppGray:
                     return SKColorType.Gray8;
+                
+                case PixelFormat.Format8bppIndexed:
+                    return SKColorType.Gray8;
 
                 // Potential expansions:
                 // case PixelFormat.Format64bppArgb:

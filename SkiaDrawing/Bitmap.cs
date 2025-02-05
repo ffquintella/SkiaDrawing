@@ -63,7 +63,7 @@ namespace SkiaDrawing
 
             bool success = b.ToSKBitmap().ScalePixels(newSkBitmap, SKFilterQuality.High);
             if (!success)
-                throw new Exception("Failed to scale the source bitmap to the specified size.");
+                throw new Exception("Failed to scale the source bitmap.");
 
             skBitmap = newSkBitmap;
         }
@@ -75,9 +75,7 @@ namespace SkiaDrawing
             if (scan0 == IntPtr.Zero)
                 throw new ArgumentNullException(nameof(scan0), "scan0 cannot be IntPtr.Zero.");
 
-            // Create an SKImageInfo
             SKImageInfo info = new SKImageInfo(width, height, pixelFormat, SKAlphaType.Premul);
-
             skBitmap = new SKBitmap(info);
 
             IntPtr destPtr = skBitmap.GetPixels();
@@ -88,7 +86,7 @@ namespace SkiaDrawing
             {
                 byte* srcRow = (byte*)scan0.ToPointer();
                 byte* dstRow = (byte*)destPtr.ToPointer();
-                int rowBytes = skBitmap.RowBytes;  // number of bytes per row in the destination
+                int rowBytes = skBitmap.RowBytes;
 
                 for (int y = 0; y < height; y++)
                 {
@@ -172,16 +170,56 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Clone Method
+        #region Clone (Crop + Convert)
 
         /// <summary>
         /// Clones the specified rectangle from this bitmap into a new Bitmap,
         /// using the specified PixelFormat <paramref name="f"/>.
         /// </summary>
-        /// <param name="r">The region to clone (crop) from this bitmap.</param>
-        /// <param name="f">The desired pixel format for the new bitmap.</param>
-        /// <returns>A new Bitmap containing the cropped and converted region.</returns>
         public Bitmap Clone(Rectangle r, PixelFormat f)
+        {
+            if (skBitmap == null)
+                throw new ObjectDisposedException(nameof(Bitmap));
+
+            if (r.X < 0 || r.Y < 0 || r.Width < 0 || r.Height < 0 ||
+                r.X + r.Width > Width || r.Y + r.Height > Height)
+            {
+                throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
+            }
+
+            // Convert the custom PixelFormat enum to a SkiaSharp SKColorType.
+            SKColorType colorType = f.ToSKColorType(); // You'd implement 'ToSKColorType()' for your enum.
+
+            // Create a new SKBitmap for the subregion + color format
+            SKImageInfo newInfo = new SKImageInfo(r.Width, r.Height, colorType, SKAlphaType.Premul);
+            SKBitmap newSkBitmap = new SKBitmap(newInfo);
+
+            SKCanvas canvas = new SKCanvas(newSkBitmap);
+            SKRect srcRect = new SKRect(r.X, r.Y, r.X + r.Width, r.Y + r.Height);
+            SKRect dstRect = new SKRect(0, 0, r.Width, r.Height);
+
+            // Draw subregion from the original onto the new.
+            canvas.DrawBitmap(skBitmap, srcRect, dstRect);
+            canvas.Dispose();
+
+            return new Bitmap(newSkBitmap);
+        }
+
+        #endregion
+
+        #region LockBits
+
+        /// <summary>
+        /// Locks the specified rectangular portion of this Bitmap into system memory.
+        /// This mimics System.Drawing.Bitmap.LockBits(Rectangle, ImageLockMode, PixelFormat).
+        /// </summary>
+        /// <remarks>
+        /// For simplicity, we do not perform advanced locking. We simply compute
+        /// an offset pointer (Scan0) for the requested rectangle, and return a
+        /// BitmapData object referencing the entire SKBitmap buffer with the stride
+        /// of the full image, but width/height from the rectangle.
+        /// </remarks>
+        public BitmapData LockBits(Rectangle r, ImageLockMode m, PixelFormat f)
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
@@ -193,30 +231,46 @@ namespace SkiaDrawing
                 throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
             }
 
-            // Map the PixelFormat to a SkiaSharp SKColorType
-            SKColorType colorType = f.ToSKColorType(); // <== Assume you have a method like this
+            // In System.Drawing, if the requested PixelFormat doesn't match the actual underlying format,
+            // GDI+ might do a conversion. Here we assume they've matched or we do a simple check:
+            // If you want to strictly enforce matching, you'd do so here.
+            // For simplicity, we skip strict checks or conversions.
 
-            // Create a new SKBitmap with the desired size and color type
-            SKImageInfo newInfo = new SKImageInfo(r.Width, r.Height, colorType, SKAlphaType.Premul);
-            SKBitmap newSkBitmap = new SKBitmap(newInfo);
+            // The pointer to the start of the full bitmap data
+            IntPtr basePtr = skBitmap.GetPixels();
+            if (basePtr == IntPtr.Zero)
+                throw new Exception("Failed to get bitmap pixel pointer.");
 
-            // We'll draw the source sub-region onto the new bitmap.
-            SKCanvas canvas = new SKCanvas(newSkBitmap);
+            // We interpret 'Stride' as the number of bytes in each row of the entire bitmap
+            int fullStride = skBitmap.RowBytes;
 
-            // Source rectangle in the current bitmap
-            var srcRect = new SKRect(r.X, r.Y, r.X + r.Width, r.Y + r.Height);
+            // If the user asked for a sub-rectangle, we offset the pointer accordingly:
+            // We skip 'r.Y' rows, each row has 'fullStride' bytes,
+            // plus 'r.X * BytesPerPixel' to move horizontally.
+            // For demonstration, let's assume 4 bytes/pixel for RGBA8888 if you want a real calculation.
+            int bytesPerPixel = EstimateBytesPerPixel(f); // We'll define a helper method below.
 
-            // Destination rectangle in the new bitmap (starts at 0,0)
-            var dstRect = new SKRect(0, 0, r.Width, r.Height);
+            // Row offset from the top
+            int rowOffset = r.Y * fullStride;
+            // Column offset
+            int colOffset = r.X * bytesPerPixel;
 
-            // Draw the portion of the original skBitmap into the new one.
-            canvas.DrawBitmap(skBitmap, srcRect, dstRect);
+            // The pointer to the top-left corner of the requested rectangle
+            IntPtr rectPtr = IntPtr.Add(basePtr, rowOffset + colOffset);
 
-            // Dispose the canvas
-            canvas.Dispose();
+            // We'll create a new BitmapData object to return
+            BitmapData data = new BitmapData
+            {
+                Scan0 = rectPtr,
+                Stride = fullStride,   // We remain consistent with the full image stride
+                Width = r.Width,
+                Height = r.Height,
+                PixelFormat = f,
+                LockMode = m
+            };
 
-            // Return a new Bitmap wrapping this newly created SKBitmap
-            return new Bitmap(newSkBitmap);
+            // Typically we might mark something internally as locked, but for simplicity we won't.
+            return data;
         }
 
         #endregion
@@ -304,6 +358,31 @@ namespace SkiaDrawing
                 return "Bitmap: Disposed";
 
             return $"Bitmap: {Width} x {Height}, Stride: {Stride} bytes";
+        }
+
+        /// <summary>
+        /// A very naive helper to guess bytes/pixel from a PixelFormat. 
+        /// Adjust as needed for your custom enum.
+        /// </summary>
+        private int EstimateBytesPerPixel(PixelFormat fmt)
+        {
+            // In real code, you'd handle more formats. This is just an example.
+            switch (fmt)
+            {
+                case PixelFormat.Format32bppArgb:
+                case PixelFormat.Format32bppPArgb:
+                case PixelFormat.Format32bppRgb:
+                    return 4;
+                case PixelFormat.Format24bppRgb:
+                    return 3;
+                case PixelFormat.Format8bppGray:
+                    return 1;
+                case PixelFormat.Format16bppRgb565:
+                    return 2;
+                default:
+                    // If unknown, assume 4 to avoid out-of-bounds
+                    return 4;
+            }
         }
     }
 }
