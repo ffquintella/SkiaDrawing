@@ -9,7 +9,6 @@ namespace SkiaDrawing
     {
         private SKBitmap skBitmap;
 
-        // Internal resolution fields.
         private float horizontalResolution = 96.0f;
         private float verticalResolution   = 96.0f;
 
@@ -32,13 +31,11 @@ namespace SkiaDrawing
                 skBitmap = SKBitmap.Decode(fs);
                 if (skBitmap == null)
                     throw new Exception("Failed to decode bitmap from file.");
-                
-                // Here you could parse metadata to set horizontalResolution and verticalResolution if desired
+                // Could parse metadata if needed for DPI
             }
             finally
             {
-                if (fs != null)
-                    fs.Dispose();
+                if (fs != null) fs.Dispose();
             }
         }
 
@@ -50,8 +47,7 @@ namespace SkiaDrawing
             skBitmap = SKBitmap.Decode(stream);
             if (skBitmap == null)
                 throw new Exception("Failed to decode bitmap from stream.");
-            
-            // Could parse stream metadata for DPI here if needed
+            // Could parse metadata if needed for DPI
         }
 
         public Bitmap(SKBitmap bitmap)
@@ -89,7 +85,6 @@ namespace SkiaDrawing
                 throw new ArgumentNullException(nameof(scan0), "scan0 cannot be IntPtr.Zero.");
 
             SKColorType skColorType = p.ToSKColorType();
-
             SKImageInfo info = new SKImageInfo(width, height, skColorType, SKAlphaType.Premul);
             skBitmap = new SKBitmap(info);
 
@@ -138,8 +133,7 @@ namespace SkiaDrawing
         }
 
         /// <summary>
-        /// Gets or sets the horizontal resolution, in dots per inch (DPI).
-        /// Defaults to 96 if not otherwise specified.
+        /// Gets or sets the horizontal resolution (DPI). Defaults to 96 if not set.
         /// </summary>
         public float HorizontalResolution
         {
@@ -148,8 +142,7 @@ namespace SkiaDrawing
         }
 
         /// <summary>
-        /// Gets or sets the vertical resolution, in dots per inch (DPI).
-        /// Defaults to 96 if not otherwise specified.
+        /// Gets or sets the vertical resolution (DPI). Defaults to 96 if not set.
         /// </summary>
         public float VerticalResolution
         {
@@ -205,11 +198,39 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Clone (Crop + Convert)
+        #region Clone (Entire Bitmap)
 
         /// <summary>
-        /// Clones the specified rectangle from this bitmap into a new Bitmap,
-        /// using the specified PixelFormat <paramref name="f"/>.
+        /// Creates an exact copy of this entire bitmap.
+        /// This mimics the parameterless Clone() from System.Drawing, returning a new Bitmap.
+        /// </summary>
+        public Bitmap Clone()
+        {
+            if (skBitmap == null)
+                throw new ObjectDisposedException(nameof(Bitmap));
+
+            // Prepare new SKBitmap with same dimensions, color type, alpha type
+            var oldSKB = this.skBitmap;
+            SKImageInfo info = new SKImageInfo(oldSKB.Width, oldSKB.Height, oldSKB.ColorType, oldSKB.AlphaType);
+            SKBitmap newSKB = new SKBitmap(info);
+
+            // Draw old into new to copy all pixel data
+            SKCanvas canvas = new SKCanvas(newSKB);
+            canvas.DrawBitmap(oldSKB, 0, 0);
+            canvas.Dispose();
+
+            // Construct a new Bitmap from newSKB
+            Bitmap newBmp = new Bitmap(newSKB)
+            {
+                HorizontalResolution = this.horizontalResolution,
+                VerticalResolution = this.verticalResolution
+            };
+
+            return newBmp;
+        }
+
+        /// <summary>
+        /// Clones a portion of the bitmap into a new bitmap, converting pixel format if specified.
         /// </summary>
         public Bitmap Clone(Rectangle r, PixelFormat f)
         {
@@ -222,6 +243,7 @@ namespace SkiaDrawing
                 throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
             }
 
+            // Convert PixelFormat to SKColorType
             SKColorType colorType = f.ToSKColorType();
 
             SKImageInfo newInfo = new SKImageInfo(r.Width, r.Height, colorType, SKAlphaType.Premul);
@@ -237,8 +259,8 @@ namespace SkiaDrawing
             // Create the new Bitmap
             Bitmap newBmp = new Bitmap(newSkBitmap)
             {
-                HorizontalResolution = this.HorizontalResolution,
-                VerticalResolution = this.VerticalResolution
+                HorizontalResolution = this.horizontalResolution,
+                VerticalResolution = this.verticalResolution
             };
 
             return newBmp;
@@ -248,9 +270,6 @@ namespace SkiaDrawing
 
         #region LockBits / UnlockBits
 
-        /// <summary>
-        /// Locks the specified rectangular portion of this Bitmap into system memory.
-        /// </summary>
         public BitmapData LockBits(Rectangle r, ImageLockMode m, PixelFormat f)
         {
             if (skBitmap == null)
@@ -290,7 +309,7 @@ namespace SkiaDrawing
         {
             if (bmData == null)
                 throw new ArgumentNullException(nameof(bmData));
-            // No additional copying done here
+            // If WriteOnly or user input buffer, real GDI+ might do copyback. We do nothing.
         }
 
         #endregion
@@ -361,10 +380,6 @@ namespace SkiaDrawing
 
         #region DPI Helpers
 
-        /// <summary>
-        /// Sets the horizontal and vertical resolution (in DPI).
-        /// This method mimics System.Drawing.Bitmap.SetResolution(float xDpi, float yDpi).
-        /// </summary>
         public void SetResolution(float horizontal, float vertical)
         {
             if (horizontal <= 0 || vertical <= 0)
