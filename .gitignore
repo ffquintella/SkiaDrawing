@@ -1,0 +1,52 @@
+# Ignore arquivos de build
+bin/
+obj/
+
+# Ignore arquivos de Rider
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Ignore arquivos de log e temporários
+*.log
+*.tmp
+*.temp
+
+# Ignore pacotes e dependências
+*.nupkg
+packages/
+.vs/
+
+# Ignore arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ignore arquivos de configuração local
+*.config
+*.local
+
+# Ignore arquivos de cache
+*.cache
+*.caches
+
+# Ignore arquivos de lock
+*.lock.json
+
+# Ignore arquivos de teste
+TestResults/
+
+# Ignore arquivos de publicação
+publish/
+
+# Ignore arquivos de debug
+*.pdb
+
+# Ignore arquivos de cobertura de código
+coverage/
+*.coverage
+*.coveragexml
+
+# Ignore arquivos gerados pelo sistema
+_ReSharper.*
