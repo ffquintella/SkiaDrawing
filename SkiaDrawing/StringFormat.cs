@@ -31,15 +31,30 @@ namespace SkiaDrawing
         public bool DirectionRightToLeft { get; set; } = false;
 
         /// <summary>
-        /// Specifies additional format flags, if needed in the future.
+        /// Specifies additional format flags.
         /// </summary>
-        public int FormatFlags { get; set; } = 0;
+        public StringFormatFlags FormatFlags { get; set; } = 0;
 
         /// <summary>
         /// Creates a new default StringFormat.
         /// </summary>
         public StringFormat()
         {
+        }
+
+        /// <summary>
+        /// Creates a new StringFormat using specific format flags.
+        /// </summary>
+        /// <param name="flags">The StringFormatFlags to apply.</param>
+        public StringFormat(StringFormatFlags flags)
+        {
+            FormatFlags = flags;
+
+            // Apply right-to-left setting if specified in flags
+            if ((flags & StringFormatFlags.DirectionRightToLeft) != 0)
+            {
+                DirectionRightToLeft = true;
+            }
         }
 
         /// <summary>
@@ -119,7 +134,7 @@ namespace SkiaDrawing
 
         public override string ToString()
         {
-            return $"StringFormat [Alignment={Alignment}, LineAlignment={LineAlignment}, Trimming={Trimming}, DirectionRightToLeft={DirectionRightToLeft}]";
+            return $"StringFormat [Alignment={Alignment}, LineAlignment={LineAlignment}, Trimming={Trimming}, DirectionRightToLeft={DirectionRightToLeft}, FormatFlags={FormatFlags}]";
         }
     }
 }
