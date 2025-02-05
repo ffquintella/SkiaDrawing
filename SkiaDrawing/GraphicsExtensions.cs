@@ -79,63 +79,7 @@ namespace SkiaDrawing
             }
         }
 
-        /// <summary>
-        /// Converts a Rectangle from the specified GraphicsUnit into Skia's SKRect (float-based).
-        /// If unit=Pixel, we use direct integer coords. If unit=Inch, we multiply by dpi, etc.
-        /// For demonstration, we handle Pixel and Inch; other units can be added similarly.
-        /// </summary>
-        private static SkiaSharp.SKRect ConvertRect(Rectangle r, GraphicsUnit unit, float dpiX, float dpiY)
-        {
-            // By default, interpret as pixel (no scaling).
-            float x = r.X;
-            float y = r.Y;
-            float w = r.Width;
-            float h = r.Height;
-
-            switch (unit)
-            {
-                case GraphicsUnit.Pixel:
-                case GraphicsUnit.Display:
-                    // direct usage of integer coordinates => no scaling
-                    break;
-
-                case GraphicsUnit.Inch:
-                    // 1 inch => multiply by DPI
-                    x *= dpiX;
-                    y *= dpiY;
-                    w *= dpiX;
-                    h *= dpiY;
-                    break;
-
-                // For demonstration, we show how you might handle another unit
-                case GraphicsUnit.Millimeter:
-                    // 1 mm = (1/25.4) inch => multiply by (dpi / 25.4)
-                    float scaleX_mm = dpiX / 25.4f;
-                    float scaleY_mm = dpiY / 25.4f;
-                    x *= scaleX_mm; 
-                    y *= scaleY_mm;
-                    w *= scaleX_mm; 
-                    h *= scaleY_mm;
-                    break;
-
-                case GraphicsUnit.Point:
-                    // 1 point = 1/72 inch => multiply by (dpi / 72)
-                    float scaleX_pt = dpiX / 72.0f;
-                    float scaleY_pt = dpiY / 72.0f;
-                    x *= scaleX_pt; 
-                    y *= scaleY_pt;
-                    w *= scaleX_pt; 
-                    h *= scaleY_pt;
-                    break;
-
-                // Add Document (1/300 inch), etc., as needed.
-                // Just default to pixel if not recognized
-                default:
-                    break;
-            }
-
-            return new SkiaSharp.SKRect(x, y, x + w, y + h);
-        }
+        
 
         /// <summary>
         /// DrawImage override to draw the portion of 'b' from 'skSrc' to 'skDest' 
@@ -209,6 +153,143 @@ namespace SkiaDrawing
             // We can call an existing extension/method that takes (Bitmap, Rectangle)
             // which draws the entire source image into that rectangle.
             g.DrawImage(b, destRect);
+        }
+        
+        /// <summary>
+        /// Draws the specified portion (srcX, srcY, srcWidth, srcHeight) of bitmap 'b'
+        /// into the destination rectangle 'destRect' on the drawing surface,
+        /// interpreting coordinates via the specified GraphicsUnit.
+        /// Optionally applies any color transforms / gamma / etc. from the ImageAttributes.
+        /// </summary>
+        public static void DrawImage(
+            this Graphics g,
+            Bitmap b,
+            Rectangle destRect,
+            int srcX,
+            int srcY,
+            int srcWidth,
+            int srcHeight,
+            GraphicsUnit unit,
+            ImageAttributes attributes)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (b == null)
+                throw new ArgumentNullException(nameof(b));
+
+            // Convert the source rectangle
+            var srcRect = new Rectangle(srcX, srcY, srcWidth, srcHeight);
+
+            // We'll interpret the destRect, srcRect using 'unit' if needed:
+            // Get the bitmap's DPI for conversions:
+            float dpiX = b.HorizontalResolution;
+            float dpiY = b.VerticalResolution;
+
+            // Convert rectangles to Skia's SKRect (float-based)
+            var skSrc = ConvertRect(srcRect, unit, dpiX, dpiY);
+            var skDest = ConvertRect(destRect, unit, dpiX, dpiY);
+
+            // Create a paint that includes filtering (based on g.InterpolationMode) and
+            // possibly a color filter from attributes.
+            using (var paint = new SkiaSharp.SKPaint())
+            {
+                // If you have a method like g.InterpolationMode.ToSKFilterQuality(), call it here:
+                paint.FilterQuality = g.InterpolationMode.ToSKFilterQuality(); 
+                paint.IsAntialias = true;
+
+                // If attributes != null, retrieve color filter
+                if (attributes != null)
+                {
+                    var cf = attributes.GetSKColorFilter();
+                    if (cf != null)
+                        paint.ColorFilter = cf;
+                }
+
+                // Now we draw the portion of the bitmap
+                var canvas = GetCanvas(g);
+                canvas.DrawBitmap(b.ToSKBitmap(), skSrc, skDest, paint);
+            }
+        }
+
+        /// <summary>
+        /// Converts a Rectangle from the specified GraphicsUnit into Skia's SKRect (float-based).
+        /// If unit=Pixel, we use direct integer coords. If unit=Inch, we multiply by dpi, etc.
+        /// For demonstration, we handle Pixel, Inch, Millimeter, Point, etc.
+        /// </summary>
+        private static SkiaSharp.SKRect ConvertRect(Rectangle r, GraphicsUnit unit, float dpiX, float dpiY)
+        {
+            float x = r.X;
+            float y = r.Y;
+            float w = r.Width;
+            float h = r.Height;
+
+            switch (unit)
+            {
+                case GraphicsUnit.Pixel:
+                case GraphicsUnit.Display:
+                    // Use integer coords as-is
+                    break;
+
+                case GraphicsUnit.Inch:
+                    // 1 inch => multiply by DPI
+                    x *= dpiX;
+                    y *= dpiY;
+                    w *= dpiX;
+                    h *= dpiY;
+                    break;
+
+                case GraphicsUnit.Millimeter:
+                    // 1 mm = 1/25.4 inch => multiply by (dpi / 25.4)
+                    float scaleX_mm = dpiX / 25.4f;
+                    float scaleY_mm = dpiY / 25.4f;
+                    x *= scaleX_mm; 
+                    y *= scaleY_mm;
+                    w *= scaleX_mm; 
+                    h *= scaleY_mm;
+                    break;
+
+                case GraphicsUnit.Point:
+                    // 1 point = 1/72 inch => multiply by (dpi / 72)
+                    float scaleX_pt = dpiX / 72f;
+                    float scaleY_pt = dpiY / 72f;
+                    x *= scaleX_pt;
+                    y *= scaleY_pt;
+                    w *= scaleX_pt;
+                    h *= scaleY_pt;
+                    break;
+
+                case GraphicsUnit.Document:
+                    // 1 doc unit = 1/300 inch => multiply by (dpi / 300)
+                    float scaleX_doc = dpiX / 300f;
+                    float scaleY_doc = dpiY / 300f;
+                    x *= scaleX_doc;
+                    y *= scaleY_doc;
+                    w *= scaleX_doc;
+                    h *= scaleY_doc;
+                    break;
+
+                // You could add more or map Display differently, etc.
+                default:
+                    // Fall back to Pixel
+                    break;
+            }
+
+            return new SkiaSharp.SKRect(x, y, x + w, y + h);
+        }
+
+        /// <summary>
+        /// Retrieves the internal SKCanvas from the Graphics object via reflection,
+        /// or throws if not found.
+        /// </summary>
+        private static SkiaSharp.SKCanvas GetCanvas(Graphics g)
+        {
+            var canvasField = typeof(Graphics).GetField("canvas", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (canvasField == null)
+                throw new Exception("Could not find internal field 'canvas' in Graphics.");
+            var canvasObj = canvasField.GetValue(g);
+            if (canvasObj == null)
+                throw new Exception("The internal 'canvas' is null in Graphics.");
+            return (SkiaSharp.SKCanvas)canvasObj;
         }
     }
 }
