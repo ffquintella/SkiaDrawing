@@ -5,6 +5,8 @@ namespace SkiaDrawing
     {
         public int X;
         public int Y;
+        
+        public bool IsEmpty => X == 0 && Y == 0;
 
         public Point(int x, int y)
         {

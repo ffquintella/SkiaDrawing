@@ -514,6 +514,59 @@ namespace SkiaDrawing
                 throw new ObjectDisposedException(nameof(Graphics));
         }
         
+        /// <summary>
+        /// Draws a rectangle using the specified Pen.
+        /// </summary>
+        /// <param name="g">The Graphics object on which to draw.</param>
+        /// <param name="p">The Pen used to outline the rectangle.</param>
+        /// <param name="r">The Rectangle defining the size and position.</param>
+        public static void DrawRectangle(this Graphics g, Pen p, Rectangle r)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (p == null)
+                throw new ArgumentNullException(nameof(p));
+
+            g.CheckDisposed();
+
+            using (SKPaint paint = new SKPaint
+                   {
+                       Color = p.Color.ToSKColor(),
+                       Style = SKPaintStyle.Stroke,
+                       StrokeWidth = p.Width,
+                       IsAntialias = true
+                   })
+            {
+                g.ToSKCanvas().DrawRect(r.X, r.Y, r.Width, r.Height, paint);
+            }
+        }
+        
+        /// <summary>
+        /// Fills a rectangle using the specified SolidBrush.
+        /// </summary>
+        /// <param name="g">The Graphics object on which to draw.</param>
+        /// <param name="b">The SolidBrush used to fill the rectangle.</param>
+        /// <param name="r">The RectangleF defining the size and position.</param>
+        public static void FillRectangle(this Graphics g, SolidBrush b, RectangleF r)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (b == null)
+                throw new ArgumentNullException(nameof(b));
+
+            g.CheckDisposed();
+
+            using (SKPaint paint = new SKPaint
+                   {
+                       Color = b.Color.ToSKColor(),
+                       Style = SKPaintStyle.Fill,
+                       IsAntialias = true
+                   })
+            {
+                g.ToSKCanvas().DrawRect(r.X, r.Y, r.Width, r.Height, paint);
+            }
+        }
+        
     }
 }
 

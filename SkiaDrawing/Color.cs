@@ -48,6 +48,17 @@ namespace SkiaDrawing
         {
             return FromArgb(255, red, green, blue);
         }
+        
+        /// <summary>
+        /// Creates a new Color with the specified alpha but preserves the base color's RGB values.
+        /// </summary>
+        /// <param name="alpha">The new alpha (transparency) value.</param>
+        /// <param name="baseColor">The base color whose RGB values will be retained.</param>
+        /// <returns>A new Color with the modified alpha value.</returns>
+        public static Color FromArgb(byte alpha, Color baseColor)
+        {
+            return new Color(new SKColor(baseColor.R, baseColor.G, baseColor.B, alpha), baseColor._name);
+        }
 
         /// <summary>
         /// Creates a Color from a SkiaSharp SKColor.
