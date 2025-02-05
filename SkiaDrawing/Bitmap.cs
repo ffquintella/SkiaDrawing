@@ -31,7 +31,6 @@ namespace SkiaDrawing
                 skBitmap = SKBitmap.Decode(fs);
                 if (skBitmap == null)
                     throw new Exception("Failed to decode bitmap from file.");
-                // Could parse metadata if needed for DPI
             }
             finally
             {
@@ -47,7 +46,6 @@ namespace SkiaDrawing
             skBitmap = SKBitmap.Decode(stream);
             if (skBitmap == null)
                 throw new Exception("Failed to decode bitmap from stream.");
-            // Could parse metadata if needed for DPI
         }
 
         public Bitmap(SKBitmap bitmap)
@@ -72,11 +70,16 @@ namespace SkiaDrawing
 
             skBitmap = newSkBitmap;
 
-            // Copy resolution from the original
+            // Copy over resolution from original
             horizontalResolution = b.horizontalResolution;
             verticalResolution   = b.verticalResolution;
         }
 
+        /// <summary>
+        /// Creates a Bitmap from raw pixel data, using the provided width, height, stride, 
+        /// PixelFormat (p), and pointer to the pixel data (scan0).
+        /// The raw data is copied into this bitmap’s internal buffer.
+        /// </summary>
         public Bitmap(int width, int height, int stride, PixelFormat p, IntPtr scan0)
         {
             if (width <= 0 || height <= 0)
@@ -108,6 +111,31 @@ namespace SkiaDrawing
             }
         }
 
+        /// <summary>
+        /// Creates a new Bitmap from an existing one, scaled to the specified width and height.
+        /// </summary>
+        public Bitmap(Bitmap b, int width, int height)
+        {
+            if (b == null)
+                throw new ArgumentNullException(nameof(b));
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException("Width and height must be positive.");
+
+            // Build a new SKBitmap with the desired dimensions
+            SKImageInfo newInfo = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKBitmap newSkBitmap = new SKBitmap(newInfo);
+
+            bool success = b.ToSKBitmap().ScalePixels(newSkBitmap, SKFilterQuality.High);
+            if (!success)
+                throw new Exception("Failed to scale the source bitmap to the specified size.");
+
+            skBitmap = newSkBitmap;
+
+            // Copy resolution from original
+            horizontalResolution = b.horizontalResolution;
+            verticalResolution   = b.verticalResolution;
+        }
+
         #endregion
 
         #region Properties
@@ -132,18 +160,12 @@ namespace SkiaDrawing
             }
         }
 
-        /// <summary>
-        /// Gets or sets the horizontal resolution (DPI). Defaults to 96 if not set.
-        /// </summary>
         public float HorizontalResolution
         {
             get => horizontalResolution;
             set => horizontalResolution = value;
         }
 
-        /// <summary>
-        /// Gets or sets the vertical resolution (DPI). Defaults to 96 if not set.
-        /// </summary>
         public float VerticalResolution
         {
             get => verticalResolution;
@@ -178,7 +200,6 @@ namespace SkiaDrawing
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
-
             if (x < 0 || x >= skBitmap.Width || y < 0 || y >= skBitmap.Height)
                 throw new ArgumentOutOfRangeException();
 
@@ -189,7 +210,6 @@ namespace SkiaDrawing
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
-
             if (x < 0 || x >= skBitmap.Width || y < 0 || y >= skBitmap.Height)
                 throw new ArgumentOutOfRangeException();
 
@@ -198,39 +218,35 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Clone (Entire Bitmap)
+        #region Clone
 
         /// <summary>
         /// Creates an exact copy of this entire bitmap.
-        /// This mimics the parameterless Clone() from System.Drawing, returning a new Bitmap.
         /// </summary>
         public Bitmap Clone()
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
 
-            // Prepare new SKBitmap with same dimensions, color type, alpha type
-            var oldSKB = this.skBitmap;
-            SKImageInfo info = new SKImageInfo(oldSKB.Width, oldSKB.Height, oldSKB.ColorType, oldSKB.AlphaType);
-            SKBitmap newSKB = new SKBitmap(info);
+            var info = new SKImageInfo(skBitmap.Width, skBitmap.Height, skBitmap.ColorType, skBitmap.AlphaType);
+            SKBitmap newSkBitmap = new SKBitmap(info);
 
-            // Draw old into new to copy all pixel data
-            SKCanvas canvas = new SKCanvas(newSKB);
-            canvas.DrawBitmap(oldSKB, 0, 0);
-            canvas.Dispose();
+            using (var canvas = new SKCanvas(newSkBitmap))
+            {
+                canvas.DrawBitmap(skBitmap, 0, 0);
+            }
 
-            // Construct a new Bitmap from newSKB
-            Bitmap newBmp = new Bitmap(newSKB)
+            Bitmap newBmp = new Bitmap(newSkBitmap)
             {
                 HorizontalResolution = this.horizontalResolution,
-                VerticalResolution = this.verticalResolution
+                VerticalResolution   = this.verticalResolution
             };
 
             return newBmp;
         }
 
         /// <summary>
-        /// Clones a portion of the bitmap into a new bitmap, converting pixel format if specified.
+        /// Clones a portion of this bitmap into a new one, possibly converting pixel format.
         /// </summary>
         public Bitmap Clone(Rectangle r, PixelFormat f)
         {
@@ -240,29 +256,25 @@ namespace SkiaDrawing
             if (r.X < 0 || r.Y < 0 || r.Width < 0 || r.Height < 0 ||
                 r.X + r.Width > Width || r.Y + r.Height > Height)
             {
-                throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
+                throw new ArgumentException("The specified rectangle is out of bounds.");
             }
 
-            // Convert PixelFormat to SKColorType
             SKColorType colorType = f.ToSKColorType();
-
             SKImageInfo newInfo = new SKImageInfo(r.Width, r.Height, colorType, SKAlphaType.Premul);
             SKBitmap newSkBitmap = new SKBitmap(newInfo);
 
-            SKCanvas canvas = new SKCanvas(newSkBitmap);
-            SKRect srcRect = new SKRect(r.X, r.Y, r.X + r.Width, r.Y + r.Height);
-            SKRect dstRect = new SKRect(0, 0, r.Width, r.Height);
+            using (SKCanvas canvas = new SKCanvas(newSkBitmap))
+            {
+                var srcRect = new SKRect(r.X, r.Y, r.X + r.Width, r.Y + r.Height);
+                var dstRect = new SKRect(0, 0, r.Width, r.Height);
+                canvas.DrawBitmap(skBitmap, srcRect, dstRect);
+            }
 
-            canvas.DrawBitmap(skBitmap, srcRect, dstRect);
-            canvas.Dispose();
-
-            // Create the new Bitmap
-            Bitmap newBmp = new Bitmap(newSkBitmap)
+            var newBmp = new Bitmap(newSkBitmap)
             {
                 HorizontalResolution = this.horizontalResolution,
-                VerticalResolution = this.verticalResolution
+                VerticalResolution   = this.verticalResolution
             };
-
             return newBmp;
         }
 
@@ -292,7 +304,7 @@ namespace SkiaDrawing
             int colOffset = r.X * bytesPerPixel;
             IntPtr rectPtr = IntPtr.Add(basePtr, rowOffset + colOffset);
 
-            BitmapData data = new BitmapData
+            return new BitmapData
             {
                 Scan0       = rectPtr,
                 Stride      = fullStride,
@@ -301,15 +313,13 @@ namespace SkiaDrawing
                 PixelFormat = f,
                 LockMode    = m
             };
-
-            return data;
         }
 
         public void UnlockBits(BitmapData bmData)
         {
             if (bmData == null)
                 throw new ArgumentNullException(nameof(bmData));
-            // If WriteOnly or user input buffer, real GDI+ might do copyback. We do nothing.
+            // No copy-back in this simplified approach
         }
 
         #endregion
@@ -411,6 +421,9 @@ namespace SkiaDrawing
             return $"Bitmap: {Width} x {Height}, Stride: {Stride} bytes, DPI: {horizontalResolution}x{verticalResolution}";
         }
 
+        /// <summary>
+        /// Estimate bytes/pixel for the chosen pixel format.
+        /// </summary>
         private int EstimateBytesPerPixel(PixelFormat fmt)
         {
             switch (fmt)
