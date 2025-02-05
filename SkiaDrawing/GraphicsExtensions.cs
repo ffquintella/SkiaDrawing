@@ -321,6 +321,52 @@ namespace SkiaDrawing
         }
         
         
+        /// <summary>
+        /// Attempts to copy pixels from the screen (at source coords x,y) 
+        /// to the current Graphics surface (at 0,0) with size 'size',
+        /// using the specified CopyPixelOperation (which is SourceCopy here).
+        /// 
+        /// Note: This method is a stub demonstrating signature only, 
+        /// as SkiaSharp does not provide cross-platform screen capture.
+        /// Real usage would require platform-specific code (e.g., Windows GDI BitBlt).
+        /// </summary>
+        public static void CopyFromScreen(
+            this Graphics g,
+            int x,
+            int y,
+            int zero1,
+            int zero2,
+            Size size,
+            CopyPixelOperation copyPixelOp // typically SourceCopy
+        )
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+
+            if (copyPixelOp != CopyPixelOperation.SourceCopy)
+            {
+                // For demonstration, we only support SourceCopy in this stub.
+                throw new NotImplementedException("Only SourceCopy is supported in this example.");
+            }
+
+            // In real code, you might do a platform-specific approach:
+            // 
+            //  1) On Windows: 
+            //     - P/Invoke BitBlt from the screen DC to an offscreen HDC, 
+            //       then create an SKBitmap from that HDC, 
+            //       then draw to the Graphics's SKCanvas.
+            //  2) On macOS: 
+            //     - Use CGDisplay, capture a CGImage, convert to Skia, etc.
+            //  3) On Linux or other OS: 
+            //     - There's no universal approach. Possibly X11 calls, etc.
+            // 
+            // For demonstration, we throw:
+            throw new NotImplementedException(
+                "CopyFromScreen is not implemented cross-platform. " + 
+                "Use platform-specific APIs to capture the screen."
+            );
+        }
+        
     }
 }
 
