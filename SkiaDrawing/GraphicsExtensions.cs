@@ -162,6 +162,29 @@ namespace SkiaDrawing
             // Now draw the portion
             canvas.DrawBitmap(b.ToSKBitmap(), skSrc, skDest, paint);
         }
+        
+        /// <summary>
+        /// Draws the entire source bitmap into the specified destination rectangle
+        /// on the drawing surface, scaling or shrinking as needed.
+        /// Similar to System.Drawing.Graphics.DrawImage(Image, Rectangle).
+        /// </summary>
+        /// <param name="g">The Graphics object on which to draw.</param>
+        /// <param name="b">The Bitmap to draw.</param>
+        /// <param name="destRect">The destination rectangle where the bitmap is drawn.</param>
+        public static void DrawImage(this Graphics g, Bitmap b, Rectangle destRect)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (b == null)
+                throw new ArgumentNullException(nameof(b));
+
+            // Draw the entire bitmap (srcRect = the bitmap's full area),
+            // into the specified destRect, using Pixel as the graphics unit.
+            Rectangle srcRect = new Rectangle(0, 0, b.Width, b.Height);
+
+            // You can rely on your previously implemented DrawImage(Bitmap, Rectangle, Rectangle, GraphicsUnit) extension:
+            g.DrawImage(b, destRect, srcRect, GraphicsUnit.Pixel);
+        }
     }
 }
 
