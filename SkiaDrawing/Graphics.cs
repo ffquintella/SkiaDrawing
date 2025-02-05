@@ -12,6 +12,18 @@ namespace SkiaDrawing
         private SKCanvas canvas;
         private bool disposed;
 
+        // The current interpolation mode for image drawing.
+        private InterpolationMode interpolationMode = InterpolationMode.Default;
+
+        /// <summary>
+        /// Gets or sets the interpolation mode used when drawing images.
+        /// </summary>
+        public InterpolationMode InterpolationMode
+        {
+            get => interpolationMode;
+            set => interpolationMode = value;
+        }
+
         /// <summary>
         /// Private constructor. Use FromImage(Bitmap) to create a Graphics for a given Bitmap.
         /// </summary>
@@ -40,11 +52,9 @@ namespace SkiaDrawing
         /// Clears the entire drawing surface and fills it with the specified color.
         /// Similar to System.Drawing.Graphics.Clear(Color).
         /// </summary>
-        /// <param name="c">The color to fill the surface with.</param>
         public void Clear(Color c)
         {
             CheckDisposed();
-            // Call Skia's Clear with the color converted to SKColor.
             canvas.Clear(c.ToSKColor());
         }
 
@@ -143,14 +153,28 @@ namespace SkiaDrawing
             paint.Dispose();
         }
 
+        /// <summary>
+        /// Draws the specified source bitmap at (x, y), applying the current InterpolationMode.
+        /// </summary>
         public void DrawImage(Bitmap image, float x, float y)
         {
             if (image == null) throw new ArgumentNullException(nameof(image));
             CheckDisposed();
 
-            canvas.DrawBitmap(image.ToSKBitmap(), x, y);
+            SKPaint paint = new SKPaint
+            {
+                FilterQuality = ConvertInterpolationMode(interpolationMode),
+                IsAntialias = true
+            };
+
+            canvas.DrawBitmap(image.ToSKBitmap(), x, y, paint);
+            paint.Dispose();
         }
 
+        /// <summary>
+        /// Draws a string at the specified coordinates, with the specified font size and color.
+        /// (Simplified approach—no advanced font families, styles, etc.)
+        /// </summary>
         public void DrawString(string text, float x, float y, Color color, float textSize = 16)
         {
             if (text == null) throw new ArgumentNullException(nameof(text));
@@ -193,6 +217,34 @@ namespace SkiaDrawing
         {
             CheckDisposed();
             canvas.ResetMatrix();
+        }
+
+        #endregion
+
+        #region Internal Helpers
+
+        private SKFilterQuality ConvertInterpolationMode(InterpolationMode mode)
+        {
+            switch (mode)
+            {
+                case InterpolationMode.Low:
+                case InterpolationMode.NearestNeighbor:
+                    return SKFilterQuality.None;
+
+                case InterpolationMode.Bilinear:
+                case InterpolationMode.Default:
+                    return SKFilterQuality.Low;
+
+                case InterpolationMode.High:
+                case InterpolationMode.Bicubic:
+                case InterpolationMode.HighQualityBilinear:
+                case InterpolationMode.HighQualityBicubic:
+                    return SKFilterQuality.High;
+
+                // You could map 'Bilinear' -> Medium, for instance. Skia supports None, Low, Medium, High.
+                // Adjust as needed.
+            }
+            return SKFilterQuality.Low; // default
         }
 
         #endregion
