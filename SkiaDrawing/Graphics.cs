@@ -3,21 +3,13 @@ using SkiaSharp;
 
 namespace SkiaDrawing
 {
-    /// <summary>
-    /// A simplified version of System.Drawing.Graphics, implemented using SkiaSharp.
-    /// Provides basic 2D drawing operations on a Bitmap (SKBitmap).
-    /// </summary>
     public class Graphics : IDisposable
     {
         private SKCanvas canvas;
         private bool disposed;
 
-        // The current interpolation mode for image drawing.
+        // Example InterpolationMode property and other members...
         private InterpolationMode interpolationMode = InterpolationMode.Default;
-
-        /// <summary>
-        /// Gets or sets the interpolation mode used when drawing images.
-        /// </summary>
         public InterpolationMode InterpolationMode
         {
             get => interpolationMode;
@@ -41,26 +33,17 @@ namespace SkiaDrawing
             if (bitmap == null)
                 throw new ArgumentNullException(nameof(bitmap));
 
-            // We create a new SKCanvas that draws on the internal SKBitmap.
             SKCanvas skCanvas = new SKCanvas(bitmap.ToSKBitmap());
             return new Graphics(skCanvas);
         }
 
-        #region Clear Method
+        #region Clear and Drawing Methods
 
-        /// <summary>
-        /// Clears the entire drawing surface and fills it with the specified color.
-        /// Similar to System.Drawing.Graphics.Clear(Color).
-        /// </summary>
         public void Clear(Color c)
         {
             CheckDisposed();
             canvas.Clear(c.ToSKColor());
         }
-
-        #endregion
-
-        #region Drawing Methods
 
         public void DrawLine(Pen pen, float x1, float y1, float x2, float y2)
         {
@@ -103,7 +86,7 @@ namespace SkiaDrawing
 
             SKPaint paint = new SKPaint
             {
-                Color = brush.Color.ToSKColor(),
+                Color = brush.Color.ToSKColor(), // Brush must have a Color property
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
@@ -153,9 +136,6 @@ namespace SkiaDrawing
             paint.Dispose();
         }
 
-        /// <summary>
-        /// Draws the specified source bitmap at (x, y), applying the current InterpolationMode.
-        /// </summary>
         public void DrawImage(Bitmap image, float x, float y)
         {
             if (image == null) throw new ArgumentNullException(nameof(image));
@@ -163,7 +143,7 @@ namespace SkiaDrawing
 
             SKPaint paint = new SKPaint
             {
-                FilterQuality = ConvertInterpolationMode(interpolationMode),
+                FilterQuality = InterpolationMode.ToSKFilterQuality(),
                 IsAntialias = true
             };
 
@@ -172,8 +152,8 @@ namespace SkiaDrawing
         }
 
         /// <summary>
-        /// Draws a string at the specified coordinates, with the specified font size and color.
-        /// (Simplified approach—no advanced font families, styles, etc.)
+        /// Draws a text string at the specified location using a simple color
+        /// and textSize. (Existing version in your code.)
         /// </summary>
         public void DrawString(string text, float x, float y, Color color, float textSize = 16)
         {
@@ -189,6 +169,34 @@ namespace SkiaDrawing
 
             canvas.DrawText(text, x, y, paint);
             paint.Dispose();
+        }
+
+        /// <summary>
+        /// NEW OVERLOAD:
+        /// Draws a text string at the specified location using a Font and a Brush,
+        /// mirroring System.Drawing.Graphics.DrawString(string, Font, Brush, float, float).
+        /// </summary>
+        public void DrawString(string text, Font font, Brush brush, float x, float y)
+        {
+            if (text == null) throw new ArgumentNullException(nameof(text));
+            if (font == null) throw new ArgumentNullException(nameof(font));
+            if (brush == null) throw new ArgumentNullException(nameof(brush));
+            CheckDisposed();
+
+            // Convert our Font to an SKPaint
+            // If you want to pass a specific DPI, do so (example: 96f).
+            using (SKPaint paint = font.ToSKPaint(96f))
+            {
+                // If the brush is a SolidBrush, set paint.Color to that brush color.
+                // If the brush is a gradient or something else, you may need additional logic.
+                paint.Color = brush.Color.ToSKColor();
+
+                // If you want to handle underline or strikeout:
+                // if (font.Underline) { ... } etc. (In Skia, you'd typically do a separate line.)
+
+                // Draw the text
+                canvas.DrawText(text, x, y, paint);
+            }
         }
 
         #endregion
@@ -221,35 +229,24 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Internal Helpers
+        #region VisibleClipBounds
 
-        private SKFilterQuality ConvertInterpolationMode(InterpolationMode mode)
+        /// <summary>
+        /// Gets the visible clipping bounds of the Graphics object as a RectangleF.
+        /// </summary>
+        public RectangleF VisibleClipBounds
         {
-            switch (mode)
+            get
             {
-                case InterpolationMode.Low:
-                case InterpolationMode.NearestNeighbor:
-                    return SKFilterQuality.None;
-
-                case InterpolationMode.Bilinear:
-                case InterpolationMode.Default:
-                    return SKFilterQuality.Low;
-
-                case InterpolationMode.High:
-                case InterpolationMode.Bicubic:
-                case InterpolationMode.HighQualityBilinear:
-                case InterpolationMode.HighQualityBicubic:
-                    return SKFilterQuality.High;
-
-                // You could map 'Bilinear' -> Medium, for instance. Skia supports None, Low, Medium, High.
-                // Adjust as needed.
+                CheckDisposed();
+                SKRect skRect = canvas.DeviceClipBounds;
+                return new RectangleF(skRect.Left, skRect.Top, skRect.Width, skRect.Height);
             }
-            return SKFilterQuality.Low; // default
         }
 
         #endregion
 
-        #region State / Disposal
+        #region Disposal
 
         private void CheckDisposed()
         {
@@ -268,5 +265,10 @@ namespace SkiaDrawing
         }
 
         #endregion
+
+        public override string ToString()
+        {
+            return $"Graphics [VisibleClipBounds={VisibleClipBounds}]";
+        }
     }
 }

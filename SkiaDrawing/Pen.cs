@@ -3,7 +3,7 @@ namespace SkiaDrawing
     /// <summary>
     /// A minimal stand-in for System.Drawing.Pen, used for drawing lines, rectangles, etc.
     /// </summary>
-    public class Pen
+    public class Pen: IDisposable
     {
         public Color Color { get; set; }
         public float Width { get; set; }
@@ -14,6 +14,11 @@ namespace SkiaDrawing
         {
             Color = color;
             Width = width;
+        }
+
+        public void Dispose()
+        {
+            // No unmanaged resources to release.
         }
     }
 }

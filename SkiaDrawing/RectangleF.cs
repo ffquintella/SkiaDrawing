@@ -23,5 +23,18 @@ namespace SkiaDrawing
         public float Top    => Y;
         public float Right  => X + Width;
         public float Bottom => Y + Height;
+
+        /// <summary>
+        /// Gets or sets the Size (Width, Height) of this RectangleF as a SizeF.
+        /// </summary>
+        public SizeF Size
+        {
+            get => new SizeF(Width, Height);
+            set
+            {
+                Width  = value.Width;
+                Height = value.Height;
+            }
+        }
     }
 }
