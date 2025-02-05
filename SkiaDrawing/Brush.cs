@@ -7,6 +7,11 @@ namespace SkiaDrawing
     {
         public Color Color { get; set; }
 
+        public Brush()
+        {
+            Color = Color.Black;
+        }
+        
         public Brush(Color color)
         {
             Color = color;

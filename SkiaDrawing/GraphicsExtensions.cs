@@ -291,6 +291,36 @@ namespace SkiaDrawing
                 throw new Exception("The internal 'canvas' is null in Graphics.");
             return (SkiaSharp.SKCanvas)canvasObj;
         }
+        
+        /// <summary>
+        /// Fills the specified rectangle on the drawing surface with a linear gradient,
+        /// using the given LinearGradientBrush.
+        /// </summary>
+        /// <param name="g">The Graphics object on which to draw.</param>
+        /// <param name="b">The LinearGradientBrush defining the gradient fill.</param>
+        /// <param name="r">An integer-based Rectangle specifying the area to fill.</param>
+        public static void FillRectangle(this Graphics g, LinearGradientBrush b, Rectangle r)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (b == null)
+                throw new ArgumentNullException(nameof(b));
+
+            // Obtain the underlying SKCanvas from the Graphics object via reflection.
+            var canvas = GetCanvas(g);
+
+            // Create an SKPaint from the brush.
+            // We'll dispose it immediately after use (no 'using' statements, per your style).
+            var paint = b.ToSKPaint();
+
+            // Draw the rectangle
+            canvas.DrawRect(r.X, r.Y, r.Width, r.Height, paint);
+
+            // Dispose the paint
+            paint.Dispose();
+        }
+        
+        
     }
 }
 
