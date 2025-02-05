@@ -44,6 +44,23 @@ namespace SkiaDrawing
 
         #endregion
 
+        #region Static Methods
+
+        /// <summary>
+        /// Creates a Rectangle from the specified left, top, right, and bottom edges.
+        /// </summary>
+        /// <param name="left">The x-coordinate of the left edge.</param>
+        /// <param name="top">The y-coordinate of the top edge.</param>
+        /// <param name="right">The x-coordinate of the right edge.</param>
+        /// <param name="bottom">The y-coordinate of the bottom edge.</param>
+        /// <returns>A new Rectangle that spans from (left, top) to (right, bottom).</returns>
+        public static Rectangle FromLTRB(int left, int top, int right, int bottom)
+        {
+            return new Rectangle(left, top, right - left, bottom - top);
+        }
+
+        #endregion
+
         #region Static Properties
 
         /// <summary>
@@ -55,9 +72,6 @@ namespace SkiaDrawing
 
         #region Properties
 
-        /// <summary>
-        /// Gets or sets the x-coordinate of the left edge of this Rectangle.
-        /// </summary>
         public int Left
         {
             get => X;
@@ -69,18 +83,12 @@ namespace SkiaDrawing
             }
         }
 
-        /// <summary>
-        /// Gets or sets the x-coordinate of the right edge of this Rectangle.
-        /// </summary>
         public int Right
         {
             get => X + Width;
             set => Width = value - X;
         }
 
-        /// <summary>
-        /// Gets or sets the y-coordinate of the top edge of this Rectangle.
-        /// </summary>
         public int Top
         {
             get => Y;
@@ -92,23 +100,14 @@ namespace SkiaDrawing
             }
         }
 
-        /// <summary>
-        /// Gets or sets the y-coordinate of the bottom edge of this Rectangle.
-        /// </summary>
         public int Bottom
         {
             get => Y + Height;
             set => Height = value - Y;
         }
 
-        /// <summary>
-        /// Gets a value indicating whether this Rectangle has Width and Height of 0.
-        /// </summary>
         public bool IsEmpty => (Width <= 0) || (Height <= 0);
 
-        /// <summary>
-        /// Gets or sets the location of this Rectangle (X and Y).
-        /// </summary>
         public Point Location
         {
             get => new Point(X, Y);
@@ -119,9 +118,6 @@ namespace SkiaDrawing
             }
         }
 
-        /// <summary>
-        /// Gets or sets the size of this Rectangle (Width and Height).
-        /// </summary>
         public Size Size
         {
             get => new Size(Width, Height);
@@ -134,132 +130,13 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Methods
-
-        /// <summary>
-        /// Determines whether the specified point is contained within this Rectangle.
-        /// </summary>
-        public bool Contains(int x, int y)
-        {
-            return (x >= X) && (x < X + Width) && (y >= Y) && (y < Y + Height);
-        }
-
-        /// <summary>
-        /// Determines whether the specified point is contained within this Rectangle.
-        /// </summary>
-        public bool Contains(Point pt) => Contains(pt.X, pt.Y);
-
-        /// <summary>
-        /// Determines whether the specified Rectangle is contained within this Rectangle.
-        /// </summary>
-        public bool Contains(Rectangle rect)
-        {
-            return (rect.X >= X) &&
-                   (rect.Right <= Right) &&
-                   (rect.Y >= Y) &&
-                   (rect.Bottom <= Bottom);
-        }
-
-        /// <summary>
-        /// Inflates this Rectangle by the specified amount.
-        /// </summary>
-        public void Inflate(int x, int y)
-        {
-            X -= x;
-            Y -= y;
-            Width += 2 * x;
-            Height += 2 * y;
-        }
-
-        /// <summary>
-        /// Inflates this Rectangle by the specified Size.
-        /// </summary>
-        public void Inflate(Size size) => Inflate(size.Width, size.Height);
-
-        /// <summary>
-        /// Creates and returns an inflated copy of the specified Rectangle.
-        /// </summary>
-        public static Rectangle Inflate(Rectangle rect, int x, int y)
-        {
-            var r = rect;
-            r.Inflate(x, y);
-            return r;
-        }
-
-        /// <summary>
-        /// Offsets the location of this Rectangle by the specified amount.
-        /// </summary>
-        public void Offset(int x, int y)
-        {
-            X += x;
-            Y += y;
-        }
-
-        /// <summary>
-        /// Offsets the location of this Rectangle by the specified Point.
-        /// </summary>
-        public void Offset(Point pos) => Offset(pos.X, pos.Y);
-
-        /// <summary>
-        /// Determines whether this Rectangle intersects with another.
-        /// </summary>
-        public bool IntersectsWith(Rectangle rect)
-        {
-            return (rect.X < X + Width) &&
-                   (X < (rect.X + rect.Width)) &&
-                   (rect.Y < Y + Height) &&
-                   (Y < (rect.Y + rect.Height));
-        }
-
-        /// <summary>
-        /// Returns the Rectangle that represents the intersection of this and another Rectangle.
-        /// If there is no intersection, Rectangle.Empty is returned.
-        /// </summary>
-        public Rectangle Intersection(Rectangle rect)
-        {
-            if (!IntersectsWith(rect))
-                return Empty;
-
-            int x1 = Math.Max(X, rect.X);
-            int y1 = Math.Max(Y, rect.Y);
-            int x2 = Math.Min(Right, rect.Right);
-            int y2 = Math.Min(Bottom, rect.Bottom);
-            return new Rectangle(x1, y1, x2 - x1, y2 - y1);
-        }
-
-        /// <summary>
-        /// Returns the intersection of two Rectangles.
-        /// </summary>
-        public static Rectangle Intersect(Rectangle a, Rectangle b) => a.Intersection(b);
-
-        /// <summary>
-        /// Returns a new Rectangle that exactly contains the two input Rectangles (their union).
-        /// If either Rectangle is empty, the union is the non-empty Rectangle.
-        /// </summary>
-        public static Rectangle Union(Rectangle a, Rectangle b)
-        {
-            int x1 = Math.Min(a.X, b.X);
-            int y1 = Math.Min(a.Y, b.Y);
-            int x2 = Math.Max(a.Right, b.Right);
-            int y2 = Math.Max(a.Bottom, b.Bottom);
-            return new Rectangle(x1, y1, x2 - x1, y2 - y1);
-        }
-
-        #endregion
-
         #region Conversion to SkiaSharp
 
-        /// <summary>
-        /// Converts this Rectangle (integer-based) to an SKRect (float-based).
-        /// </summary>
         public SKRect ToSKRect()
         {
             return new SKRect(X, Y, X + Width, Y + Height);
         }
 
-        /// <summary>
-        /// Creates a Rectangle from an SKRect by truncating float values to int.
-        /// </summary>
         public static Rectangle FromSKRect(SKRect rect)
         {
             int x = (int)rect.Left;
@@ -287,7 +164,6 @@ namespace SkiaDrawing
         {
             unchecked
             {
-                // Typical combination of fields for a hash code
                 int hash = 17;
                 hash = (hash * 31) + X.GetHashCode();
                 hash = (hash * 31) + Y.GetHashCode();
