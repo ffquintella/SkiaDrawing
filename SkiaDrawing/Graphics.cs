@@ -16,18 +16,11 @@ namespace SkiaDrawing
             set => interpolationMode = value;
         }
 
-        /// <summary>
-        /// Private constructor. Use FromImage(Bitmap) to create a Graphics for a given Bitmap.
-        /// </summary>
         private Graphics(SKCanvas skCanvas)
         {
             canvas = skCanvas ?? throw new ArgumentNullException(nameof(skCanvas));
         }
 
-        /// <summary>
-        /// Creates a new Graphics object for drawing on the specified Bitmap.
-        /// Similar to System.Drawing.Graphics.FromImage(Image).
-        /// </summary>
         public static Graphics FromImage(Bitmap bitmap)
         {
             if (bitmap == null)
@@ -86,7 +79,7 @@ namespace SkiaDrawing
 
             SKPaint paint = new SKPaint
             {
-                Color = brush.Color.ToSKColor(), // Brush must have a Color property
+                Color = brush.Color.ToSKColor(),
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
@@ -152,8 +145,7 @@ namespace SkiaDrawing
         }
 
         /// <summary>
-        /// Draws a text string at the specified location using a simple color
-        /// and textSize. (Existing version in your code.)
+        /// Draws text with a simple color and textSize.
         /// </summary>
         public void DrawString(string text, float x, float y, Color color, float textSize = 16)
         {
@@ -172,9 +164,7 @@ namespace SkiaDrawing
         }
 
         /// <summary>
-        /// NEW OVERLOAD:
-        /// Draws a text string at the specified location using a Font and a Brush,
-        /// mirroring System.Drawing.Graphics.DrawString(string, Font, Brush, float, float).
+        /// Draws text with a Font and Brush, at the given location.
         /// </summary>
         public void DrawString(string text, Font font, Brush brush, float x, float y)
         {
@@ -183,19 +173,42 @@ namespace SkiaDrawing
             if (brush == null) throw new ArgumentNullException(nameof(brush));
             CheckDisposed();
 
-            // Convert our Font to an SKPaint
-            // If you want to pass a specific DPI, do so (example: 96f).
-            using (SKPaint paint = font.ToSKPaint(96f))
+            using (SKPaint paint = font.ToSKPaint(96f)) // e.g. 96 DPI
             {
-                // If the brush is a SolidBrush, set paint.Color to that brush color.
-                // If the brush is a gradient or something else, you may need additional logic.
                 paint.Color = brush.Color.ToSKColor();
-
-                // If you want to handle underline or strikeout:
-                // if (font.Underline) { ... } etc. (In Skia, you'd typically do a separate line.)
-
-                // Draw the text
                 canvas.DrawText(text, x, y, paint);
+            }
+        }
+
+        #endregion
+
+        #region MeasureString
+
+        /// <summary>
+        /// Measures the width and height of the given string using the specified Font.
+        /// Returns a SizeF representing the bounding box (in local drawing units).
+        /// </summary>
+        public SizeF MeasureString(string numerics, Font f)
+        {
+            if (numerics == null)
+                throw new ArgumentNullException(nameof(numerics));
+            if (f == null)
+                throw new ArgumentNullException(nameof(f));
+            CheckDisposed();
+
+            // Create a paint from the Font. Assume 96 DPI or adjust if needed.
+            using (SKPaint paint = f.ToSKPaint(96f))
+            {
+                // measure the width of the text
+                float width = paint.MeasureText(numerics);
+
+                // measure the vertical extent via FontMetrics
+                SKFontMetrics metrics = paint.FontMetrics;
+                // The full height can be (metrics.Descent - metrics.Ascent). 
+                // 'Leading' is extra spacing, typically for text lines.
+                float height = metrics.Descent - metrics.Ascent;
+
+                return new SizeF(width, height);
             }
         }
 
@@ -231,9 +244,6 @@ namespace SkiaDrawing
 
         #region VisibleClipBounds
 
-        /// <summary>
-        /// Gets the visible clipping bounds of the Graphics object as a RectangleF.
-        /// </summary>
         public RectangleF VisibleClipBounds
         {
             get

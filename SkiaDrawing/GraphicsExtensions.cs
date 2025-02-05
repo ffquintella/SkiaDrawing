@@ -367,6 +367,36 @@ namespace SkiaDrawing
             );
         }
         
+        /// <summary>
+        /// Draws a series of connected lines (Point[i] to Point[i+1]) 
+        /// using the specified Pen, mimicking System.Drawing.Graphics.DrawLines.
+        /// </summary>
+        /// <param name="g">The Graphics on which to draw.</param>
+        /// <param name="p">The Pen used to draw the lines.</param>
+        /// <param name="points">An array of Point structs defining line endpoints.</param>
+        public static void DrawLines(this Graphics g, Pen p, Point[] points)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (p == null)
+                throw new ArgumentNullException(nameof(p));
+            if (points == null)
+                throw new ArgumentNullException(nameof(points));
+            if (points.Length < 2)
+                return; // Nothing to draw if fewer than 2 points.
+
+            // Loop over each consecutive pair of points.
+            for (int i = 0; i < points.Length - 1; i++)
+            {
+                float x1 = points[i].X;
+                float y1 = points[i].Y;
+                float x2 = points[i + 1].X;
+                float y2 = points[i + 1].Y;
+
+                g.DrawLine(p, x1, y1, x2, y2);
+            }
+        }
+        
     }
 }
 
