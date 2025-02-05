@@ -17,6 +17,7 @@ namespace SkiaDrawing
         public Bitmap(int width, int height)
         {
             skBitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            PixelFormat = PixelFormat.Format32bppArgb;
         }
 
         public Bitmap(string fileName)
@@ -31,6 +32,7 @@ namespace SkiaDrawing
                 skBitmap = SKBitmap.Decode(fs);
                 if (skBitmap == null)
                     throw new Exception("Failed to decode bitmap from file.");
+                PixelFormat = PixelFormat.Format32bppArgb;
             }
             finally
             {
@@ -46,6 +48,8 @@ namespace SkiaDrawing
             skBitmap = SKBitmap.Decode(stream);
             if (skBitmap == null)
                 throw new Exception("Failed to decode bitmap from stream.");
+            
+            PixelFormat = PixelFormat.Format32bppArgb;
         }
 
         public Bitmap(SKBitmap bitmap)
@@ -54,6 +58,7 @@ namespace SkiaDrawing
                 throw new ArgumentNullException(nameof(bitmap));
 
             skBitmap = bitmap;
+            PixelFormat = PixelFormat.Format32bppArgb;
         }
 
         public Bitmap(Bitmap b, Size s)
@@ -73,6 +78,31 @@ namespace SkiaDrawing
             // Copy over resolution from original
             horizontalResolution = b.horizontalResolution;
             verticalResolution   = b.verticalResolution;
+            
+            PixelFormat = b.PixelFormat;
+        }
+        
+        /// <summary>
+        /// Creates a Bitmap of the given width/height in the specified PixelFormat.
+        /// In this simplified example, we primarily handle PixelFormat.Format32bppArgb 
+        /// by creating a 32-bit RGBA (premultiplied) Skia bitmap.
+        /// </summary>
+        public Bitmap(int width, int height, PixelFormat format)
+        {
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException("Width and height must be positive.");
+
+            // Example: handle only Format32bppArgb.
+            // If you need more formats, add logic or throw for unsupported.
+            if (format != PixelFormat.Format32bppArgb)
+                throw new NotSupportedException(
+                    $"Only Format32bppArgb is supported in this constructor, but got {format}."
+                );
+
+            // For Format32bppArgb => Rgba8888
+            SKImageInfo info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            skBitmap = new SKBitmap(info);
+            PixelFormat = format;
         }
 
         /// <summary>
@@ -109,6 +139,8 @@ namespace SkiaDrawing
                     dstRow += rowBytes;
                 }
             }
+            
+            PixelFormat = p;
         }
 
         /// <summary>
@@ -134,13 +166,15 @@ namespace SkiaDrawing
             // Copy resolution from original
             horizontalResolution = b.horizontalResolution;
             verticalResolution   = b.verticalResolution;
+            
+            PixelFormat = b.PixelFormat;
         }
 
         #endregion
 
         #region Properties
 
-        public int Width
+        public new int Width
         {
             get
             {
@@ -150,7 +184,7 @@ namespace SkiaDrawing
             }
         }
 
-        public int Height
+        public new int Height
         {
             get
             {
@@ -239,7 +273,8 @@ namespace SkiaDrawing
             Bitmap newBmp = new Bitmap(newSkBitmap)
             {
                 HorizontalResolution = this.horizontalResolution,
-                VerticalResolution   = this.verticalResolution
+                VerticalResolution   = this.verticalResolution,
+                PixelFormat = this.PixelFormat
             };
 
             return newBmp;
@@ -273,7 +308,8 @@ namespace SkiaDrawing
             var newBmp = new Bitmap(newSkBitmap)
             {
                 HorizontalResolution = this.horizontalResolution,
-                VerticalResolution   = this.verticalResolution
+                VerticalResolution   = this.verticalResolution,
+                PixelFormat = f
             };
             return newBmp;
         }

@@ -6,32 +6,24 @@ namespace SkiaDrawing
 {
     /// <summary>
     /// A simplified class that mimics System.Drawing.Image using SkiaSharp for pixel data.
-    /// In System.Drawing, Image is an abstract base class; here it's a concrete class for demonstration.
     /// </summary>
     public class Image : IDisposable
     {
-        /// <summary>
-        /// The underlying SkiaSharp bitmap holding the image data.
-        /// </summary>
         protected SKBitmap skBitmap;
 
-        /// <summary>
-        /// Internal fields for DPI.
-        /// By default, we assume 96 if not otherwise set or read from metadata.
-        /// </summary>
         protected float horizontalResolution = 96.0f;
         protected float verticalResolution = 96.0f;
 
         private bool disposed;
+        
+        public PixelFormat PixelFormat { get; set; }
 
         #region Constructors
 
-        /// <summary>
-        /// Protected constructor for derived classes or internal usage.
-        /// </summary>
         protected Image()
         {
-            // You could leave it empty or handle default allocation. 
+            // Empty or internal usage.
+            PixelFormat = PixelFormat.Format32bppArgb;
         }
 
         /// <summary>
@@ -48,9 +40,6 @@ namespace SkiaDrawing
 
         #region Static Creation Methods
 
-        /// <summary>
-        /// Creates an Image from a file, decoding the image via SkiaSharp.
-        /// </summary>
         public static Image FromFile(string filename)
         {
             if (string.IsNullOrEmpty(filename))
@@ -62,13 +51,10 @@ namespace SkiaDrawing
                 throw new Exception($"Failed to decode image from file: {filename}");
             Image img = new Image(bmp);
 
-            // If you want to read metadata to set DPI, do so here (not shown).
+            // Could parse metadata for DPI here
             return img;
         }
 
-        /// <summary>
-        /// Creates an Image from a stream, decoding via SkiaSharp.
-        /// </summary>
         public static Image FromStream(Stream stream)
         {
             if (stream == null)
@@ -78,6 +64,8 @@ namespace SkiaDrawing
             if (bmp == null)
                 throw new Exception("Failed to decode image from stream.");
             Image img = new Image(bmp);
+
+            // Could parse metadata for DPI here
             return img;
         }
 
@@ -85,9 +73,6 @@ namespace SkiaDrawing
 
         #region Properties
 
-        /// <summary>
-        /// Gets the width of this image in pixels.
-        /// </summary>
         public virtual int Width
         {
             get
@@ -97,9 +82,6 @@ namespace SkiaDrawing
             }
         }
 
-        /// <summary>
-        /// Gets the height of this image in pixels.
-        /// </summary>
         public virtual int Height
         {
             get
@@ -109,18 +91,12 @@ namespace SkiaDrawing
             }
         }
 
-        /// <summary>
-        /// Gets or sets the horizontal resolution (DPI) of this image.
-        /// </summary>
         public virtual float HorizontalResolution
         {
             get => horizontalResolution;
             set => horizontalResolution = value;
         }
 
-        /// <summary>
-        /// Gets or sets the vertical resolution (DPI) of this image.
-        /// </summary>
         public virtual float VerticalResolution
         {
             get => verticalResolution;
@@ -131,9 +107,6 @@ namespace SkiaDrawing
 
         #region Save Methods
 
-        /// <summary>
-        /// Saves the image to the specified file path in the given SkiaSharp format (PNG, JPEG, etc.).
-        /// </summary>
         public virtual void Save(string filename, SKEncodedImageFormat format, int quality = 100)
         {
             CheckDisposed();
@@ -148,9 +121,6 @@ namespace SkiaDrawing
             data.SaveTo(fs);
         }
 
-        /// <summary>
-        /// Saves the image to a stream in the given SkiaSharp format.
-        /// </summary>
         public virtual void Save(Stream stream, SKEncodedImageFormat format, int quality = 100)
         {
             CheckDisposed();
@@ -166,11 +136,42 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Dispose
+        #region Pixel Format Size
 
         /// <summary>
-        /// Disposes the image and its underlying resources.
+        /// Returns the bit depth (bits per pixel) for the specified PixelFormat.
+        /// You can expand or modify as needed for additional formats.
         /// </summary>
+        public static int GetPixelFormatSize(PixelFormat p)
+        {
+            switch (p)
+            {
+                case PixelFormat.Format32bppArgb:
+                case PixelFormat.Format32bppPArgb:
+                case PixelFormat.Format32bppRgb:
+                    return 32;
+
+                case PixelFormat.Format24bppRgb:
+                    return 24;
+
+                case PixelFormat.Format16bppRgb565:
+                    return 16;
+
+                case PixelFormat.Format8bppGray:
+                    return 8;
+
+                // Add or adjust any additional pixel formats you support:
+                // case PixelFormat.Format48bppRgb: return 48; etc.
+
+                default:
+                    throw new NotSupportedException($"Unsupported or unknown pixel format {p}.");
+            }
+        }
+
+        #endregion
+
+        #region Disposal
+
         public void Dispose()
         {
             if (!disposed)
@@ -192,20 +193,14 @@ namespace SkiaDrawing
 
         #endregion
 
-        #region Example Additional Methods
+        #region Utilities
 
-        /// <summary>
-        /// Returns the underlying SkiaSharp SKBitmap (if needed for advanced usage).
-        /// </summary>
         public virtual SKBitmap ToSKBitmap()
         {
             CheckDisposed();
             return skBitmap;
         }
 
-        /// <summary>
-        /// A simple string representation.
-        /// </summary>
         public override string ToString()
         {
             if (disposed) return "Image [Disposed]";
