@@ -5,7 +5,7 @@ using SkiaSharp;
 
 namespace SkiaDrawing
 {
-    public class Bitmap : IDisposable
+    public class Bitmap : Image
     {
         private SKBitmap skBitmap;
 
