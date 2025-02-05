@@ -1,4 +1,5 @@
 using System;
+using SkiaSharp;
 
 namespace SkiaDrawing
 {
@@ -397,7 +398,99 @@ namespace SkiaDrawing
             }
         }
         
+        /// <summary>
+        /// Draws a string at a given location using a Font, SolidBrush, and StringFormat.
+        /// </summary>
+        /// <param name="g">The Graphics object to draw on.</param>
+        /// <param name="text">The text to draw.</param>
+        /// <param name="font">The Font to use for rendering the text.</param>
+        /// <param name="brush">The SolidBrush to determine text color.</param>
+        /// <param name="point">The location (x, y) to draw the text.</param>
+        /// <param name="format">The StringFormat specifying alignment, direction, etc.</param>
+        public static void DrawString(this Graphics g, string text, Font font, SolidBrush brush, PointF point, StringFormat format)
+        {
+            if (g == null)
+                throw new ArgumentNullException(nameof(g));
+            if (text == null)
+                throw new ArgumentNullException(nameof(text));
+            if (font == null)
+                throw new ArgumentNullException(nameof(font));
+            if (brush == null)
+                throw new ArgumentNullException(nameof(brush));
+            if (format == null)
+                throw new ArgumentNullException(nameof(format));
+
+            g.CheckDisposed();
+
+            using (SKPaint paint = font.ToSKPaint(96f)) // Assume 96 DPI scaling
+            {
+                // Apply the brush color
+                paint.Color = brush.Color.ToSKColor();
+
+                // Measure text bounds
+                SKRect textBounds = new SKRect();
+                paint.MeasureText(text, ref textBounds);
+
+                float x = point.X;
+                float y = point.Y;
+
+                // Apply StringFormat settings
+                format.ApplyTo(paint, textBounds);
+
+                // Adjust vertical alignment
+                switch (format.LineAlignment)
+                {
+                    case StringAlignment.Center:
+                        y -= textBounds.MidY;
+                        break;
+                    case StringAlignment.Far:
+                        y -= textBounds.Bottom;
+                        break;
+                }
+
+                // Adjust horizontal alignment
+                switch (format.Alignment)
+                {
+                    case StringAlignment.Center:
+                        x -= textBounds.MidX;
+                        break;
+                    case StringAlignment.Far:
+                        x -= textBounds.Right;
+                        break;
+                }
+
+                // Draw the text
+                g.ToSKCanvas().DrawText(text, x, y, paint);
+            }
+        }
+
+        /// <summary>
+        /// Helper to get the underlying SKCanvas from a Graphics object.
+        /// </summary>
+        private static SKCanvas ToSKCanvas(this Graphics g)
+        {
+            return (SKCanvas)g.GetType()
+                              .GetField("canvas", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                              ?.GetValue(g);
+        }
+
+        /// <summary>
+        /// Ensures the Graphics object is not disposed.
+        /// </summary>
+        private static void CheckDisposed(this Graphics g)
+        {
+            var disposedField = g.GetType().GetField("disposed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (disposedField != null && (bool)disposedField.GetValue(g))
+                throw new ObjectDisposedException(nameof(Graphics));
+        }
+        
     }
 }
+
+
+
+
+
+
 
 
