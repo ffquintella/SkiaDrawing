@@ -31,7 +31,8 @@ namespace SkiaDrawing
             }
             finally
             {
-                if (fs != null) fs.Dispose();
+                if (fs != null)
+                    fs.Dispose();
             }
         }
 
@@ -63,21 +64,33 @@ namespace SkiaDrawing
 
             bool success = b.ToSKBitmap().ScalePixels(newSkBitmap, SKFilterQuality.High);
             if (!success)
-                throw new Exception("Failed to scale the source bitmap.");
+                throw new Exception("Failed to scale the source bitmap to the specified size.");
 
             skBitmap = newSkBitmap;
         }
 
-        public Bitmap(int width, int height, int stride, SKColorType pixelFormat, IntPtr scan0)
+        /// <summary>
+        /// Creates a Bitmap from raw pixel data, using the provided width, height, stride, 
+        /// PixelFormat (p), and pointer to the pixel data (scan0).
+        /// The raw data is copied into this bitmap’s internal buffer.
+        /// </summary>
+        public Bitmap(int width, int height, int stride, PixelFormat p, IntPtr scan0)
         {
             if (width <= 0 || height <= 0)
                 throw new ArgumentOutOfRangeException("Width and height must be positive.");
             if (scan0 == IntPtr.Zero)
                 throw new ArgumentNullException(nameof(scan0), "scan0 cannot be IntPtr.Zero.");
 
-            SKImageInfo info = new SKImageInfo(width, height, pixelFormat, SKAlphaType.Premul);
+            // Convert PixelFormat to SkiaSharp SKColorType
+            SKColorType skColorType = p.ToSKColorType();
+
+            // Create the SKImageInfo
+            SKImageInfo info = new SKImageInfo(width, height, skColorType, SKAlphaType.Premul);
+
+            // Allocate the SKBitmap
             skBitmap = new SKBitmap(info);
 
+            // Copy row by row from scan0 into SKBitmap
             IntPtr destPtr = skBitmap.GetPixels();
             if (destPtr == IntPtr.Zero)
                 throw new Exception("Failed to allocate pixels in SKBitmap.");
@@ -172,6 +185,10 @@ namespace SkiaDrawing
 
         #region Clone (Crop + Convert)
 
+        /// <summary>
+        /// Clones the specified rectangle from this bitmap into a new Bitmap,
+        /// using the specified PixelFormat <paramref name="f"/>.
+        /// </summary>
         public Bitmap Clone(Rectangle r, PixelFormat f)
         {
             if (skBitmap == null)
@@ -183,10 +200,14 @@ namespace SkiaDrawing
                 throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
             }
 
+            // Convert PixelFormat to SKColorType
             SKColorType colorType = f.ToSKColorType();
+
+            // Create a new SKBitmap for the subregion
             SKImageInfo newInfo = new SKImageInfo(r.Width, r.Height, colorType, SKAlphaType.Premul);
             SKBitmap newSkBitmap = new SKBitmap(newInfo);
 
+            // Draw subregion
             SKCanvas canvas = new SKCanvas(newSkBitmap);
             SKRect srcRect = new SKRect(r.X, r.Y, r.X + r.Width, r.Y + r.Height);
             SKRect dstRect = new SKRect(0, 0, r.Width, r.Height);
@@ -203,17 +224,22 @@ namespace SkiaDrawing
 
         /// <summary>
         /// Locks the specified rectangular portion of this Bitmap into system memory.
+        /// This mimics System.Drawing.Bitmap.LockBits(Rectangle, ImageLockMode, PixelFormat).
         /// </summary>
         public BitmapData LockBits(Rectangle r, ImageLockMode m, PixelFormat f)
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
 
+            // Validate rectangle bounds
             if (r.X < 0 || r.Y < 0 || r.Width < 0 || r.Height < 0 ||
                 r.X + r.Width > Width || r.Y + r.Height > Height)
             {
                 throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
             }
+
+            // Typically, if the requested PixelFormat doesn't match the actual underlying format,
+            // GDI+ might do a conversion. Here, we do a simple approach or skip strict enforcement.
 
             IntPtr basePtr = skBitmap.GetPixels();
             if (basePtr == IntPtr.Zero)
@@ -222,6 +248,7 @@ namespace SkiaDrawing
             int fullStride = skBitmap.RowBytes;
             int bytesPerPixel = EstimateBytesPerPixel(f);
 
+            // compute the pointer offset to the top-left of the rect
             int rowOffset = r.Y * fullStride;
             int colOffset = r.X * bytesPerPixel;
             IntPtr rectPtr = IntPtr.Add(basePtr, rowOffset + colOffset);
@@ -241,21 +268,15 @@ namespace SkiaDrawing
 
         /// <summary>
         /// Unlocks the specified BitmapData, finalizing any changes.
-        /// In this simplified approach, no special copying or resource changes are done.
+        /// In this simplified approach, we do not do additional copying.
         /// </summary>
         public void UnlockBits(BitmapData bmData)
         {
             if (bmData == null)
                 throw new ArgumentNullException(nameof(bmData));
 
-            // In System.Drawing, UnlockBits might copy data back to the original
-            // if the lock was WriteOnly or UserInputBuffer. In this simplified approach,
-            // we do not do any additional copying. The SKBitmap memory is still the same.
-            // We simply consider the lock concluded.
-
-            // If you need to handle concurrency or partial data, do it here.
-
-            // Nothing else to do in this basic approach.
+            // In real GDI+, if the lock was WriteOnly, we might copy back to main memory.
+            // Here, we do nothing. The changes are already in the SKBitmap memory.
         }
 
         #endregion
@@ -345,6 +366,10 @@ namespace SkiaDrawing
             return $"Bitmap: {Width} x {Height}, Stride: {Stride} bytes";
         }
 
+        /// <summary>
+        /// A naive helper to estimate bytes/pixel from PixelFormat. 
+        /// Adjust as needed for your custom formats.
+        /// </summary>
         private int EstimateBytesPerPixel(PixelFormat fmt)
         {
             switch (fmt)
@@ -355,10 +380,10 @@ namespace SkiaDrawing
                     return 4;
                 case PixelFormat.Format24bppRgb:
                     return 3;
-                case PixelFormat.Format8bppGray:
-                    return 1;
                 case PixelFormat.Format16bppRgb565:
                     return 2;
+                case PixelFormat.Format8bppGray:
+                    return 1;
                 default:
                     return 4;
             }
