@@ -9,6 +9,10 @@ namespace SkiaDrawing
     {
         private SKBitmap skBitmap;
 
+        // Internal resolution fields.
+        private float horizontalResolution = 96.0f;
+        private float verticalResolution   = 96.0f;
+
         #region Constructors
 
         public Bitmap(int width, int height)
@@ -28,6 +32,8 @@ namespace SkiaDrawing
                 skBitmap = SKBitmap.Decode(fs);
                 if (skBitmap == null)
                     throw new Exception("Failed to decode bitmap from file.");
+                
+                // Here you could parse metadata to set horizontalResolution and verticalResolution if desired
             }
             finally
             {
@@ -44,6 +50,8 @@ namespace SkiaDrawing
             skBitmap = SKBitmap.Decode(stream);
             if (skBitmap == null)
                 throw new Exception("Failed to decode bitmap from stream.");
+            
+            // Could parse stream metadata for DPI here if needed
         }
 
         public Bitmap(SKBitmap bitmap)
@@ -67,13 +75,12 @@ namespace SkiaDrawing
                 throw new Exception("Failed to scale the source bitmap to the specified size.");
 
             skBitmap = newSkBitmap;
+
+            // Copy resolution from the original
+            horizontalResolution = b.horizontalResolution;
+            verticalResolution   = b.verticalResolution;
         }
 
-        /// <summary>
-        /// Creates a Bitmap from raw pixel data, using the provided width, height, stride, 
-        /// PixelFormat (p), and pointer to the pixel data (scan0).
-        /// The raw data is copied into this bitmap’s internal buffer.
-        /// </summary>
         public Bitmap(int width, int height, int stride, PixelFormat p, IntPtr scan0)
         {
             if (width <= 0 || height <= 0)
@@ -81,16 +88,11 @@ namespace SkiaDrawing
             if (scan0 == IntPtr.Zero)
                 throw new ArgumentNullException(nameof(scan0), "scan0 cannot be IntPtr.Zero.");
 
-            // Convert PixelFormat to SkiaSharp SKColorType
             SKColorType skColorType = p.ToSKColorType();
 
-            // Create the SKImageInfo
             SKImageInfo info = new SKImageInfo(width, height, skColorType, SKAlphaType.Premul);
-
-            // Allocate the SKBitmap
             skBitmap = new SKBitmap(info);
 
-            // Copy row by row from scan0 into SKBitmap
             IntPtr destPtr = skBitmap.GetPixels();
             if (destPtr == IntPtr.Zero)
                 throw new Exception("Failed to allocate pixels in SKBitmap.");
@@ -133,6 +135,26 @@ namespace SkiaDrawing
                     throw new ObjectDisposedException(nameof(Bitmap));
                 return skBitmap.Height;
             }
+        }
+
+        /// <summary>
+        /// Gets or sets the horizontal resolution, in dots per inch (DPI).
+        /// Defaults to 96 if not otherwise specified.
+        /// </summary>
+        public float HorizontalResolution
+        {
+            get => horizontalResolution;
+            set => horizontalResolution = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the vertical resolution, in dots per inch (DPI).
+        /// Defaults to 96 if not otherwise specified.
+        /// </summary>
+        public float VerticalResolution
+        {
+            get => verticalResolution;
+            set => verticalResolution = value;
         }
 
         public IntPtr Scan0
@@ -200,14 +222,11 @@ namespace SkiaDrawing
                 throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
             }
 
-            // Convert PixelFormat to SKColorType
             SKColorType colorType = f.ToSKColorType();
 
-            // Create a new SKBitmap for the subregion
             SKImageInfo newInfo = new SKImageInfo(r.Width, r.Height, colorType, SKAlphaType.Premul);
             SKBitmap newSkBitmap = new SKBitmap(newInfo);
 
-            // Draw subregion
             SKCanvas canvas = new SKCanvas(newSkBitmap);
             SKRect srcRect = new SKRect(r.X, r.Y, r.X + r.Width, r.Y + r.Height);
             SKRect dstRect = new SKRect(0, 0, r.Width, r.Height);
@@ -215,7 +234,14 @@ namespace SkiaDrawing
             canvas.DrawBitmap(skBitmap, srcRect, dstRect);
             canvas.Dispose();
 
-            return new Bitmap(newSkBitmap);
+            // Create the new Bitmap
+            Bitmap newBmp = new Bitmap(newSkBitmap)
+            {
+                HorizontalResolution = this.HorizontalResolution,
+                VerticalResolution = this.VerticalResolution
+            };
+
+            return newBmp;
         }
 
         #endregion
@@ -224,22 +250,17 @@ namespace SkiaDrawing
 
         /// <summary>
         /// Locks the specified rectangular portion of this Bitmap into system memory.
-        /// This mimics System.Drawing.Bitmap.LockBits(Rectangle, ImageLockMode, PixelFormat).
         /// </summary>
         public BitmapData LockBits(Rectangle r, ImageLockMode m, PixelFormat f)
         {
             if (skBitmap == null)
                 throw new ObjectDisposedException(nameof(Bitmap));
 
-            // Validate rectangle bounds
             if (r.X < 0 || r.Y < 0 || r.Width < 0 || r.Height < 0 ||
                 r.X + r.Width > Width || r.Y + r.Height > Height)
             {
                 throw new ArgumentException("The specified rectangle is out of the bitmap bounds.");
             }
-
-            // Typically, if the requested PixelFormat doesn't match the actual underlying format,
-            // GDI+ might do a conversion. Here, we do a simple approach or skip strict enforcement.
 
             IntPtr basePtr = skBitmap.GetPixels();
             if (basePtr == IntPtr.Zero)
@@ -248,35 +269,28 @@ namespace SkiaDrawing
             int fullStride = skBitmap.RowBytes;
             int bytesPerPixel = EstimateBytesPerPixel(f);
 
-            // compute the pointer offset to the top-left of the rect
             int rowOffset = r.Y * fullStride;
             int colOffset = r.X * bytesPerPixel;
             IntPtr rectPtr = IntPtr.Add(basePtr, rowOffset + colOffset);
 
             BitmapData data = new BitmapData
             {
-                Scan0 = rectPtr,
-                Stride = fullStride,
-                Width = r.Width,
-                Height = r.Height,
+                Scan0       = rectPtr,
+                Stride      = fullStride,
+                Width       = r.Width,
+                Height      = r.Height,
                 PixelFormat = f,
-                LockMode = m
+                LockMode    = m
             };
 
             return data;
         }
 
-        /// <summary>
-        /// Unlocks the specified BitmapData, finalizing any changes.
-        /// In this simplified approach, we do not do additional copying.
-        /// </summary>
         public void UnlockBits(BitmapData bmData)
         {
             if (bmData == null)
                 throw new ArgumentNullException(nameof(bmData));
-
-            // In real GDI+, if the lock was WriteOnly, we might copy back to main memory.
-            // Here, we do nothing. The changes are already in the SKBitmap memory.
+            // No additional copying done here
         }
 
         #endregion
@@ -345,6 +359,22 @@ namespace SkiaDrawing
 
         #endregion
 
+        #region DPI Helpers
+
+        /// <summary>
+        /// Sets the horizontal and vertical resolution (in DPI).
+        /// This method mimics System.Drawing.Bitmap.SetResolution(float xDpi, float yDpi).
+        /// </summary>
+        public void SetResolution(float horizontal, float vertical)
+        {
+            if (horizontal <= 0 || vertical <= 0)
+                throw new ArgumentOutOfRangeException("Resolution must be positive.");
+            horizontalResolution = horizontal;
+            verticalResolution   = vertical;
+        }
+
+        #endregion
+
         #region IDisposable
 
         public void Dispose()
@@ -363,13 +393,9 @@ namespace SkiaDrawing
             if (skBitmap == null)
                 return "Bitmap: Disposed";
 
-            return $"Bitmap: {Width} x {Height}, Stride: {Stride} bytes";
+            return $"Bitmap: {Width} x {Height}, Stride: {Stride} bytes, DPI: {horizontalResolution}x{verticalResolution}";
         }
 
-        /// <summary>
-        /// A naive helper to estimate bytes/pixel from PixelFormat. 
-        /// Adjust as needed for your custom formats.
-        /// </summary>
         private int EstimateBytesPerPixel(PixelFormat fmt)
         {
             switch (fmt)
