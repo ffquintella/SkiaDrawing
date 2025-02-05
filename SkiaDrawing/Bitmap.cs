@@ -383,6 +383,14 @@ namespace SkiaDrawing
                 data.Dispose();
             }
         }
+        
+        public void Save(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                throw new ArgumentNullException(nameof(fileName));
+
+            Save(fileName, SKEncodedImageFormat.Png);
+        }
 
         public void Save(Stream stream, SKEncodedImageFormat format, int quality = 100)
         {
