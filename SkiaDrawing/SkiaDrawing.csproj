@@ -6,6 +6,15 @@
         <Nullable>disable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>12</LangVersion>
+        <Title>SkiaDrawing</Title>
+        <Description>This library is meant to be a drop-in replacement for System.Drawing witch is not multi plaftform since version 6. It uses SkiaSharp as it's engine and re-implement the classes of System.Drawing.</Description>
+        <Copyright>2025 - Felipe Quintella</Copyright>
+        <PackageProjectUrl>https://github.com/ffquintella/SkiaDrawing</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/ffquintella/SkiaDrawing/blob/main/LICENSE</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/ffquintella/SkiaDrawing</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <AssemblyVersion>1.0.0</AssemblyVersion>
+        <FileVersion>1.0.0</FileVersion>
     </PropertyGroup>
 
     <ItemGroup>
