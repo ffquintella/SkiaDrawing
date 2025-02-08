@@ -163,5 +163,72 @@ namespace SkiaDrawing.Tests
             bitmap.Dispose();
             Assert.Throws<ObjectDisposedException>(() => { var width = bitmap.Width; });
         }
+        
+        [Fact]
+        public void RotateFlip_Rotates90Degrees()
+        {
+            using (var bmp = new Bitmap(2, 1))
+            {
+                bmp.SetPixel(0, 0, Color.White.ToSKColor());
+                bmp.SetPixel(1, 0, Color.Black.ToSKColor());
+
+                bmp.RotateFlip(RotateFlipType.Rotate90FlipNone);
+
+                Assert.Equal(Color.White.ToSKColor(), bmp.GetPixel(0, 0));
+                Assert.Equal(Color.Black.ToSKColor(), bmp.GetPixel(0, 1));
+            }
+        }
+
+        [Fact]
+        public void RotateFlip_FlipsHorizontally()
+        {
+            using (var bmp = new Bitmap(2, 1))
+            {
+                bmp.SetPixel(0, 0, Color.White.ToSKColor());
+                bmp.SetPixel(1, 0, Color.Black.ToSKColor());
+
+                bmp.RotateFlip(RotateFlipType.RotateNoneFlipX);
+
+                Assert.Equal(Color.White.ToSKColor(), bmp.GetPixel(1, 0));
+                Assert.Equal(Color.Black.ToSKColor(), bmp.GetPixel(0, 0));
+            }
+        }
+
+        [Fact]
+        public void RotateFlip_FlipsVertically()
+        {
+            using (var bmp = new Bitmap(1, 2))
+            {
+                bmp.SetPixel(0, 0, Color.White.ToSKColor());
+                bmp.SetPixel(0, 1, Color.Black.ToSKColor());
+
+                bmp.RotateFlip(RotateFlipType.RotateNoneFlipY);
+
+                Assert.Equal(Color.White.ToSKColor(), bmp.GetPixel(0, 1));
+                Assert.Equal(Color.Black.ToSKColor(), bmp.GetPixel(0, 0));
+            }
+        }
+
+        [Fact]
+        public void RotateFlip_Rotates180Degrees()
+        {
+            using (var bmp = new Bitmap(2, 1))
+            {
+                bmp.SetPixel(0, 0, Color.White.ToSKColor());
+                bmp.SetPixel(1, 0, Color.Black.ToSKColor());
+
+                bmp.RotateFlip(RotateFlipType.Rotate180FlipNone);
+
+                Assert.Equal(Color.White.ToSKColor(), bmp.GetPixel(1, 0));
+                Assert.Equal(Color.Black.ToSKColor(), bmp.GetPixel(0, 0));
+            }
+        }
+
+        [Fact]
+        public void RotateFlip_ThrowsArgumentNullException_WhenBitmapIsNull()
+        {
+            Bitmap bmp = null;
+            Assert.Throws<ArgumentNullException>(() => bmp.RotateFlip(RotateFlipType.Rotate90FlipNone));
+        }
     }
 }
