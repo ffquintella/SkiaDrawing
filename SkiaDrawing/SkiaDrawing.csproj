@@ -13,8 +13,8 @@
         <PackageLicenseUrl>https://github.com/ffquintella/SkiaDrawing/blob/main/LICENSE</PackageLicenseUrl>
         <RepositoryUrl>https://github.com/ffquintella/SkiaDrawing</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-        <AssemblyVersion>1.0.0</AssemblyVersion>
-        <FileVersion>1.0.0</FileVersion>
+        <AssemblyVersion>1.0.1</AssemblyVersion>
+        <FileVersion>1.0.1</FileVersion>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     </PropertyGroup>
 
