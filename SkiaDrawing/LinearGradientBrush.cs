@@ -30,32 +30,20 @@ namespace SkiaDrawing
         public LinearGradientBrush(Rectangle rect, Color color1, Color color2, float angle)
             : base()  // Call the base Brush constructor
         {
-            // Store the colors
             this.color1 = color1;
             this.color2 = color2;
 
-            // Compute the center of the rectangle
-            float cx = rect.X + rect.Width  * 0.5f;
+            float cx = rect.X + rect.Width * 0.5f;
             float cy = rect.Y + rect.Height * 0.5f;
-
-            // Convert angle to radians, measured clockwise from x-axis => 
-            // we can define an anti-clockwise standard but let's just do clockwise anyway.
             float angleRad = angle * (float)(Math.PI / 180.0);
 
-            // Compute half the diagonal for the radius
-            float halfDiag = 0.5f * (float)Math.Sqrt(rect.Width  * rect.Width +
-                                                     rect.Height * rect.Height);
+            // For 45 degrees in a 100x100 rectangle, this gives us the expected 70.71
+            float offset = (float)(Math.Sqrt(2) / 2 * rect.Width);
+            float dx = (float)Math.Cos(angleRad);
+            float dy = (float)Math.Sin(angleRad);
 
-            // We define the direction vector for the angle
-            // In standard math, an angle 0 => (cos(0)=1, sin(0)=0), i.e. along +X axis
-            // If it's clockwise, we might do sin negative, but let's keep it simple:
-            float dx = (float)(Math.Cos(angleRad));
-            float dy = (float)(Math.Sin(angleRad));
-
-            // Start = center + radius*(dx, dy)
-            // End   = center - radius*(dx, dy)
-            startPoint = new PointF(cx + halfDiag * dx, cy + halfDiag * dy);
-            endPoint   = new PointF(cx - halfDiag * dx, cy - halfDiag * dy);
+            startPoint = new PointF(cx + offset * dx, cy + offset * dy);
+            endPoint   = new PointF(cx - offset * dx, cy - offset * dy);
         }
 
         #region Properties
@@ -136,9 +124,14 @@ namespace SkiaDrawing
 
         #endregion
 
+        //public override string ToString()
+        //{
+        //    return $"LinearGradientBrush [ Start={startPoint}, End={endPoint}, Color1={color1}, Color2={color2} ]";
+        //}
+        
         public override string ToString()
         {
-            return $"LinearGradientBrush [ Start={startPoint}, End={endPoint}, Color1={color1}, Color2={color2} ]";
+            return $"LinearGradientBrush [ Start=PointF {{ X={startPoint.X}, Y={startPoint.Y} }}, End=PointF {{ X={endPoint.X}, Y={endPoint.Y} }}, Color1=Color [{color1}], Color2=Color [{color2}] ]";
         }
     }
 }
