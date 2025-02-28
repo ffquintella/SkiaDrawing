@@ -25,4 +25,15 @@
       <ProjectReference Include="..\SkiaDrawing\SkiaDrawing.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="testImages\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="testImages\white.png" />
+      <Content Include="testImages\white.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>
